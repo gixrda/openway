@@ -121,6 +121,29 @@ function widthMeters(v: string): number | null {
   return m ? Number(m[1].replace(',', '.')) : null;
 }
 
+// Fondi su cui una sedia a rotelle di solito passa: un highway=path con questo fondo è un percorso urbano, non un sentiero.
+const PAVED_SURFACES = new Set([
+  'paved', 'asphalt', 'concrete', 'concrete:plates', 'concrete:lanes', 'paving_stones', 'bricks', 'sett',
+  'cobblestone', 'unhewn_cobblestone', 'metal', 'wood',
+]);
+
+/**
+ * Un `highway=path` è un sentiero (escursionismo, campagna) e non un percorso pedonale urbano quando:
+ * - non ha il tag `wheelchair` (un'informazione esplicita sull'accessibilità non si scarta mai), e
+ * - ha un tag da escursionismo (`sac_scale`, `trail_visibility`, `mtb:scale`), oppure non ha nessun indizio urbano:
+ *   fondo pavimentato, `foot`/`bicycle=designated`, `segregated`, `lit=yes`.
+ * In Toscana lo sono 48.700 `path` su 50.500: quasi tutti (i numeri per l'Italia sono in ARCHITECTURE.md).
+ * I sentieri non si disegnano sulla mappa e non contano nella quantità di dati di una zona;
+ * restano però nei dati, così un percorso che ne usa uno riceve comunque l'avviso (es. "Sterrato").
+ */
+export function isTrail(t: Record<string, string>): boolean {
+  if (t.highway !== 'path' || t.wheelchair) return false;
+  if (t.sac_scale || t.trail_visibility || t['mtb:scale']) return true;
+  const urban = (t.surface !== undefined && PAVED_SURFACES.has(t.surface))
+    || t.foot === 'designated' || t.bicycle === 'designated' || t.segregated !== undefined || t.lit === 'yes';
+  return !urban;
+}
+
 export type Classified = { kind: FeatureKind; certainty: Certainty; label: string };
 
 /** Regole in ordine di gravità: vince la prima che corrisponde. Restituisce null se non c'è nulla di rilevante. */
@@ -173,9 +196,9 @@ export function classifyPlace(t: Record<string, string>, lang: Lang = DEFAULT_LA
 }
 
 /**
- * Etichetta di un elemento OSM nella lingua richiesta, ricalcolata dai tag conservati nello snapshot.
- * Se i tag non bastano (snapshot di un'altra versione) resta l'etichetta salvata.
+ * Etichetta di un elemento OSM nella lingua richiesta, ricalcolata dai tag conservati nei dati.
+ * Le celle della griglia non contengono etichette; resta come ripiego quella dello snapshot demo, se c'è.
  */
 export function featureLabel(f: Pick<OsmFeature, 'scope' | 'tags' | 'label'>, lang: Lang): string {
-  return (f.scope === 'path' ? classifyPath(f.tags, lang) : classifyPlace(f.tags, lang))?.label ?? f.label;
+  return (f.scope === 'path' ? classifyPath(f.tags, lang) : classifyPlace(f.tags, lang))?.label ?? f.label ?? '';
 }

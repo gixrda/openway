@@ -3,8 +3,14 @@ import { copyFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin, type UserConfig } from 'vite';
 import { createApi } from './server/api.ts';
+import { ensureTiles, writeLandingTiles } from './server/tiles.ts';
+import { cellsAlongLine } from './shared/tiles.ts';
+import { it as landingCopy } from './src/landing/copy.it.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
+const osmDir = `${root}server/data/osm-tiles`;
+// Griglia dei dati OSM: quella regionale se è stata scaricata o costruita, altrimenti creata dallo snapshot demo di Pisa.
+const osmReady = () => ensureTiles(osmDir, `${root}server/data/osm-pisa.json`);
 
 // Versione statica della landing per GitHub Pages: `vite build --mode static`.
 // Pages non permette header HTTP, quindi la Content Security Policy viaggia come <meta>.
@@ -32,7 +38,12 @@ function pagesBuild(): Plugin {
       // Dati serviti come file (al posto delle API) e landing come pagina iniziale del sito.
       const out = `${root}dist-pages/`;
       await mkdir(`${out}data`, { recursive: true });
-      await copyFile(`${root}server/data/osm-pisa.json`, `${out}data/osm-pisa.json`);
+      const osm = await osmReady();
+      if (osm.scope === 'demo') console.warn('\nDati OSM: solo lo snapshot demo di Pisa (npm run osm:download per tutta l\'Italia).');
+      // Celle ridotte agli ostacoli noti, complete solo attorno ai tragitti demo (300 m di margine): vedi writeLandingTiles.
+      const demoCells = new Set(landingCopy.demo.scenarios.flatMap((s) => cellsAlongLine([s.from, s.to], 300)));
+      const copied = await writeLandingTiles(osmDir, `${out}data/osm`, demoCells);
+      console.log(`\nDati OSM per la landing: ${copied.cells} celle, ${(copied.bytes / 1e6).toFixed(1)} MB`);
       await copyFile(`${root}server/data/routes-recorded.json`, `${out}data/routes-recorded.json`);
       await copyFile(`${out}landing/index.html`, `${out}index.html`);
       await copyFile(`${out}index.html`, `${out}404.html`);
@@ -57,11 +68,12 @@ export default defineConfig(({ mode }): UserConfig => {
       {
         // Le API girano nello stesso processo di Vite: un solo comando (npm run dev) per la demo.
         name: 'openway-api',
-        configureServer(server) {
+        async configureServer(server) {
+          await osmReady();
           const api = createApi({
             env: { ...process.env, ...loadEnv(mode, root, '') }, // le chiavi restano lato server, senza prefisso VITE_
             reportsFile: `${root}server/data/reports.json`,
-            osmFile: `${root}server/data/osm-pisa.json`,
+            osmDir,
           });
           server.middlewares.use((req, res, next) => { api(req, res).then((handled) => handled || next(), next); });
         },

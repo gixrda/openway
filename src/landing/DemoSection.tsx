@@ -6,7 +6,7 @@ import { formatDistance, formatDuration } from '../lib/analysis.ts';
 import { verdictOf } from '../lib/verdict.ts';
 import { APP_URL, SCENARIOS, useCopy, type Scenario } from './copy.ts';
 import { LandingMap } from './LandingMap.tsx';
-import { STATIC } from './staticData.ts';
+import { HAS_APP } from './env.ts';
 import { PinnedTitle } from './PinnedTitle.tsx';
 import { useAlerts, useRoute } from './useLanding.ts';
 
@@ -86,7 +86,7 @@ export function DemoSection({ features, reports }: { features: OsmFeature[]; rep
                 </>
               )}
               {state.status === 'ready' && state.recordedAt && <p className="ow-demo__none">{copy.routeCard.recorded(new Date(state.recordedAt).toLocaleDateString(copy.locale))}</p>}
-              {!STATIC && <a className="ow-btn ow-btn--primary ow-demo__open" href={appLink(scenario)}>{t.open}</a>}
+              {HAS_APP && <a className="ow-btn ow-btn--primary ow-demo__open" href={appLink(scenario)}>{t.open}</a>}
             </div>
           </div>
         </div>

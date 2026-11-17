@@ -5,14 +5,17 @@ import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApi } from './api.ts';
+import { ensureTiles } from './tiles.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = join(root, 'dist');
-const api = createApi({
-  env: process.env,
-  reportsFile: join(root, 'server/data/reports.json'),
-  osmFile: join(root, 'server/data/osm-pisa.json'),
-});
+const osmDir = join(root, 'server/data/osm-tiles');
+// Senza i dati regionali la griglia viene creata dallo snapshot demo: lo si dichiara all'avvio.
+const osm = await ensureTiles(osmDir, join(root, 'server/data/osm-pisa.json'));
+if (osm.scope === 'demo') console.warn("Dati OSM: solo lo snapshot demo di Pisa. Per tutta l'Italia: npm run osm:download (oppure npm run osm:build).");
+// Segnalazioni e foto: in un contenitore DATA_DIR punta a un volume, così sopravvivono a un nuovo deploy.
+const dataDir = process.env.DATA_DIR || join(root, 'server/data');
+const api = createApi({ env: process.env, reportsFile: join(dataDir, 'reports.json'), osmDir });
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.woff2': 'font/woff2',

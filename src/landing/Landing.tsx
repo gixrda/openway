@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon.tsx';
 import type { IconName } from '../lib/icons.ts';
 import { setLang, t, useLang } from '../i18n/index.ts';
-import { APP_URL, CLOUD_URL, REPO_URL, useCopy } from './copy.ts';
+import { APP_URL, REPO_URL, useCopy } from './copy.ts';
 import { DemoSection } from './DemoSection.tsx';
 import { Hero } from './Hero.tsx';
 import { Benefits, Project } from './BenefitsProject.tsx';
@@ -185,7 +185,6 @@ function Footer() {
           <h2 id="ow-footer-project" className="ow-footer__title">{f.projectTitle}</h2>
           <ul>
             <li><a href={REPO_URL} rel="noopener noreferrer">{f.repo}</a></li>
-            <li><a href={CLOUD_URL} rel="noopener noreferrer">{f.cloud}</a></li>
           </ul>
         </nav>
         <div className="ow-footer__privacy">

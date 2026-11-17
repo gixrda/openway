@@ -2,11 +2,11 @@
 
 <img src="public/logo.png" alt="" width="72" align="right">
 
-OpenWay aiuta chi si muove in sedia a rotelle a orientarsi a Pisa. Calcola un percorso adatto, lo confronta con i dati di accessibilità di OpenStreetMap e con le segnalazioni degli utenti, e dice chiaramente **cosa si sa, cosa è solo probabile e cosa manca**. Si usa con la mappa, con le dita o con la voce.
+OpenWay aiuta chi si muove in sedia a rotelle a orientarsi in Italia (è nato a Pisa, e i dati sono ricchi soprattutto nei centri delle città). Calcola un percorso adatto, lo confronta con i dati di accessibilità di OpenStreetMap e con le segnalazioni degli utenti, e dice chiaramente **cosa si sa, cosa è solo probabile e cosa manca**. Si usa con la mappa, con le dita o con la voce.
 
 > OpenWay non dichiara mai un percorso "accessibile" o "sicuro". Mostra quello che i dati permettono di verificare: l'assenza di ostacoli noti non è una garanzia e nessun percorso è stato controllato di persona.
 
-Prototipo nato all'Hacktoberfest del GDG Pisa (ottobre 2026), secondo classificato come miglior progetto open source. Il progetto si chiamava *AccessGo*: il documento di partenza `AccessGo.md` conserva il vecchio nome. L'edizione pubblicata su https://accessogo.xyxzwb.chatgpt.site/ vive nella cartella [`cloud/`](cloud/README.md) ed è un'app separata. L'architettura è descritta in [ARCHITECTURE.md](ARCHITECTURE.md).
+Prototipo nato all'Hacktoberfest del GDG Pisa (ottobre 2026), secondo classificato come miglior progetto open source. Il progetto si chiamava *AccessGo*: il documento di partenza `AccessGo.md` conserva il vecchio nome. La demo pubblica è l'app di questo repository, pubblicata come contenitore (vedi [Pubblicare l'app](#pubblicare-lapp)). La cartella [`cloud/`](cloud/README.md) contiene un'edizione precedente e separata, ferma alla sola Pisa (https://accessogo.xyxzwb.chatgpt.site/): non segue più l'app principale. L'architettura è descritta in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -35,12 +35,13 @@ git clone https://github.com/gixrda/openway.git
 cd openway
 npm install
 cp .env.example .env        # facoltativo: senza chiavi funziona lo stesso, con i fallback dichiarati
+npm run osm:download        # facoltativo: dati di tutta l'Italia, ~125 MB (senza, solo la zona universitaria di Pisa)
 npm run dev                 # apri http://localhost:5173
 ```
 
 La landing page di presentazione è su http://localhost:5173/landing/ (in produzione `/landing/`): mappa interattiva con un percorso di esempio calcolato dal vivo, ricerca indirizzi e i cinque tragitti demo. Testi in `src/landing/copy.ts`, specifiche visive in `design_system.md`.
 
-Una versione statica della landing è pubblicata su GitHub Pages: https://gixrda.github.io/openway/ . Senza server: dati OpenStreetMap inclusi, percorsi demo registrati con la data (`npm run record:routes`), ricerca diretta a Nominatim. La pubblica il workflow `.github/workflows/pages.yml` a ogni push su `main`. Sicurezza: vedi [SECURITY.md](SECURITY.md).
+Una versione statica della landing è pubblicata su GitHub Pages: https://gixrda.github.io/openway/ . Senza server: dati OpenStreetMap inclusi come celle ridotte agli ostacoli noti (dalla release `osm-data`, durante il build), percorsi demo registrati con la data (`npm run record:routes`), ricerca diretta a Nominatim. La pubblica il workflow `.github/workflows/pages.yml` a ogni push su `main`. Sicurezza: vedi [SECURITY.md](SECURITY.md).
 
 Per provarla dal telefono sulla stessa rete Wi‑Fi:
 
@@ -48,7 +49,7 @@ Per provarla dal telefono sulla stessa rete Wi‑Fi:
 npm run dev -- --host       # apri dal telefono l'indirizzo "Network" stampato, es. http://172.20.10.2:5173
 ```
 
-Dal telefono via `http://` funzionano mappa, percorsi e segnalazioni. **GPS e microfono no**: i browser li concedono solo su `https://` o `localhost`. Per quelli usa l'edizione `cloud/` pubblicata in HTTPS.
+Dal telefono via `http://` funzionano mappa, percorsi e segnalazioni. **GPS e microfono no**: i browser li concedono solo su `https://` o `localhost`. Per quelli serve l'app pubblicata in HTTPS (vedi [Pubblicare l'app](#pubblicare-lapp)).
 
 Versione di produzione (un solo processo Node che serve API e interfaccia):
 
@@ -69,6 +70,59 @@ Tutte le chiavi sono lette **solo dal server**: non hanno prefisso `VITE_` e non
 | `OLLAMA_URL`, `OLLAMA_MODEL` | Gemma in locale con Ollama, al posto di Google | `ollama pull gemma3` | — |
 | `ADMIN_TOKEN` | Codice per cambiare lo stato delle segnalazioni: un valore lungo e casuale (vuoto nel file di esempio) | lo scegli tu | cambio stato disabilitato |
 | `PORT` | Porta di `npm start` (default 8787) | — | — |
+
+---
+
+## Pubblicare l'app
+
+L'app completa (mappa, percorsi calcolati dal vivo, segnalazioni, voce) ha bisogno del server: GitHub Pages ospita solo la landing statica. Il [`Dockerfile`](Dockerfile) costruisce un'immagine con interfaccia, server e dati di tutta l'Italia, adatta a qualunque servizio che esegue contenitori da un repository GitHub (per esempio Render, Fly.io, Koyeb, Cloud Run).
+
+Prima del primo deploy: la release `osm-data` deve esistere (workflow **Dati OSM**, da lanciare a mano una volta). Senza, il build dell'immagine si ferma invece di pubblicare una demo con i soli dati di Pisa.
+
+```bash
+docker build -t openway .                                   # scarica i dati (~125 MB) e costruisce: immagine di ~1,6 GB
+docker run -p 8787:8787 --env-file .env -v openway-data:/data openway   # http://localhost:8787
+docker build --build-arg OSM_DEMO=1 -t openway-demo .       # solo per prove: snapshot demo di Pisa, niente download
+```
+
+Cosa impostare sul servizio scelto:
+
+| Impostazione | Valore |
+|---|---|
+| Porta | quella della variabile `PORT` (8787 se il servizio non la imposta) |
+| Controllo di salute | `GET /api/status` |
+| Volume persistente | montato su `/data`: lì stanno segnalazioni e foto. Senza volume si perdono a ogni deploy o riavvio |
+| Variabili (tutte facoltative) | le stesse di `.env.example`: `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ADMIN_TOKEN`, `ORS_API_KEY`… Vanno inserite nel pannello del servizio, mai nel repository |
+| Memoria | il server usa circa 200 MB |
+
+Da sapere prima di rendere pubblica una demo:
+
+- Con le chiavi impostate, chiunque apra la demo consuma i crediti di Gemma ed ElevenLabs di chi le ha messe. Senza chiavi l'app funziona con i ripieghi dichiarati (regole a parole chiave, voce disattivata).
+- Senza `ADMIN_TOKEN` nessuno può segnare una segnalazione come controllata o risolta: quelle bloccanti restano evitate dai percorsi.
+- Valhalla e Nominatim sono istanze pubbliche a uso moderato: vanno bene per una demo, non per molto traffico.
+- Per aggiornare i dati OSM serve un nuovo build dell'immagine senza cache degli strati (o dopo un nuovo commit): è il build che li scarica dalla release.
+
+Dopo il deploy, scrivi l'indirizzo della demo in `DEMO_URL` (`src/landing/env.ts`): la landing su GitHub Pages lo usa per i bottoni "Apri OpenWay" e per aprire nell'app i tragitti demo. Finché è vuoto, quei bottoni portano alle istruzioni di installazione.
+
+### Su Render, piano gratuito
+
+Il file [`render.yaml`](render.yaml) descrive il servizio: un contenitore costruito dal `Dockerfile`, piano gratuito, regione di Francoforte, controllo di salute su `/api/status`. Questi passi non sono ancora stati eseguiti: il primo deploy dirà se un'immagine di 1,6 GB rientra nei limiti del piano gratuito.
+
+1. **Dati.** Su GitHub: *Actions* → *Dati OSM* → *Run workflow* (ramo `main`). Quando finisce, nella pagina *Releases* compare `osm-data` con l'archivio `osm-tiles.tar.gz`. Si fa una volta sola: poi il workflow gira da solo ogni lunedì.
+2. **Account.** Registrati su [render.com](https://render.com) (si può entrare con l'account GitHub). Se viene chiesta una carta di credito, il piano gratuito non la addebita.
+3. **Servizio.** Apri <https://render.com/deploy?repo=https://github.com/gixrda/openway>: Render legge `render.yaml` e propone il servizio `openway`. Conferma. Il repository è pubblico, quindi non serve dare a Render l'accesso all'account GitHub.
+4. **Primo build.** Dura alcuni minuti: scarica i dati OSM e costruisce l'immagine. Se si ferma con `Dati non disponibili (… HTTP 404)`, manca la release del passo 1.
+5. **Controllo.** Apri l'indirizzo assegnato (`https://openway….onrender.com`). Nella legenda della mappa (bottone dei livelli) non deve comparire "Su questo server sono caricati solo i dati della zona universitaria di Pisa". Calcola un percorso in una città qualsiasi.
+6. **Chiavi (facoltative).** Nella scheda *Environment* del servizio aggiungi `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ADMIN_TOKEN`. Render riavvia il servizio da solo.
+7. **Landing.** Scrivi l'indirizzo in `DEMO_URL` (`src/landing/env.ts`) e apri una pull request.
+
+Per pubblicare una versione nuova: *Manual Deploy* → *Deploy latest commit*. Per riscaricare anche i dati OSM: *Clear build cache & deploy*.
+
+Limiti del piano gratuito, da dire a chi usa la demo:
+
+- **Si addormenta** dopo 15 minuti senza visite: la prima pagina dopo una pausa arriva dopo circa un minuto.
+- **Le segnalazioni non restano.** Il disco è temporaneo: segnalazioni e foto inviate spariscono a ogni riavvio, cioè anche a ogni risveglio. Gli ostacoli di OpenStreetMap non sono toccati: stanno nell'immagine. Per conservarle serve un piano a pagamento con un disco montato su `/data`.
+- 750 ore di servizio al mese per account, 512 MB di memoria (il server ne usa circa 200).
 
 ---
 
@@ -100,7 +154,7 @@ Con un percorso calcolato e la voce attiva compare **Guida vocale**:
 Apri una segnalazione → *Azioni moderatore* → inserisci `ADMIN_TOKEN` → *Controllata sul posto* o *Risolta*. Una segnalazione risolta non viene più evitata dai percorsi.
 
 ### Legenda della mappa
-Il bottone con i livelli (in alto a destra) accende e spegne ostacoli noti, segnalazioni, possibili difficoltà, elementi utili, attraversamenti senza informazioni e accessibilità dei negozi. Da lontano si vedono solo ostacoli noti e segnalazioni; avvicinando compare il resto. Il riquadro tratteggiato è la zona coperta dai dati (zona universitaria).
+Il bottone con i livelli (in alto a destra) accende e spegne ostacoli noti, segnalazioni, possibili difficoltà, elementi utili, attraversamenti senza informazioni e accessibilità dei negozi. Gli ostacoli noti compaiono dal livello di zoom 16, il resto avvicinando ancora; da lontano si vedono le segnalazioni e gli ostacoli del percorso calcolato. Il tratteggio indica quanti dati ha OpenStreetMap: fitto dove non ne ha, rado dove ne ha pochi, assente dove ne ha di più (che non vuol dire tutti). Fuori dall'Italia e in mare la mappa è velata.
 
 ### Lingue
 L'app e la landing sono in **italiano e inglese**. La lingua segue quella del browser (italiano se è tra le lingue preferite, altrimenti inglese) e si cambia con il bottone **EN / IT**: nella capsula dei controlli sulla mappa, nell'intestazione della landing (su telefono dentro il menu). La scelta resta salvata; un link può fissarla con `?lang=en` o `?lang=it`.
@@ -134,12 +188,15 @@ Demo in 3 minuti: link 5 (spiega la scelta) → link 3 (limite dichiarato) → l
 | `npm run dev` | Vite + API nello stesso processo (`-- --host` per la rete locale) |
 | `npm run build` | type-check (`tsc -b`) e build del frontend in `dist/` |
 | `npm start` | server Node di produzione: API + `dist/` |
-| `npm test` | 136 test Vitest (dati OSM, analisi e confronto percorsi, routing sicuro, ricalcolo, AI e fallback, voce, API) |
+| `npm test` | 217 test Vitest (dati OSM e griglia, confine regionale, analisi e confronto percorsi, routing sicuro, ricalcolo, AI e fallback, voce, API, lingue) |
 | `npm run typecheck` | solo type-check |
 | `npm run check:ai` | prova dal vivo di Gemma su segnalazioni di esempio (richiede la chiave) |
-| `npm run fetch:osm` | riscarica lo snapshot OpenStreetMap della zona (una sola richiesta a Overpass) |
+| `npm run osm:download` | scarica i dati OpenStreetMap di tutta l'Italia già pronti (release `osm-data`, ~125 MB compressi, ~0,8 GB su disco) in `server/data/osm-tiles/` |
+| `npm run osm:build` | ricostruisce gli stessi dati dall'estratto Geofabrik dell'Italia (2,3 GB, scaricato in `.cache/osm/`; circa un minuto dopo il download); richiede `osmium-tool`; `-- --refresh` riscarica l'estratto |
+| `npm run osm:region` | rigenera il confine semplificato dell'Italia (`shared/region.ts`) dallo stesso estratto |
+| `npm run fetch:osm` | riscarica lo snapshot demo della zona universitaria di Pisa (una sola richiesta a Overpass), usato quando mancano i dati regionali |
 | `npm run record:routes` | registra i percorsi dei tragitti demo per la landing statica (`server/data/routes-recorded.json`) |
-| `npm run build:pages` | build statico della landing per GitHub Pages in `dist-pages/` |
+| `npm run build:pages` | build statico della landing per GitHub Pages in `dist-pages/` (`npm run preview:pages` per provarlo in locale) |
 
 Lint non configurato (scelta per ridurre le dipendenze); TypeScript in modalità `strict`.
 
@@ -147,8 +204,10 @@ Lint non configurato (scelta per ridurre le dipendenze); TypeScript in modalità
 
 ## Dati e servizi
 
-- **OpenStreetMap** (© OpenStreetMap contributors, ODbL): snapshot del 24/10/2026 in `server/data/osm-pisa.json`, 1158 elementi della zona universitaria (55 ostacoli noti, 398 possibili difficoltà, 105 elementi utili, 600 dati descrittivi). Nessun dato inventato. Le tile della mappa sono quelle di OpenStreetMap, desaturate via CSS.
-- **Valhalla** (istanza pubblica FOSSGIS): percorsi, istruzioni di svolta, aggancio delle segnalazioni alla rete pedonale. **Nominatim**: ricerca indirizzi (1 richiesta al secondo, limitata a Pisa). **OSRM** (FOSSGIS): ripiego pedonale, dichiarato.
+- **OpenStreetMap** (© OpenStreetMap contributors, ODbL): tutta l'Italia, dall'estratto [Geofabrik](https://download.geofabrik.de/europe/italy.html) filtrato in locale con `osmium`. Dati del 16/11/2026: 2.078.357 elementi (158.993 ostacoli noti, 540.616 possibili difficoltà, 129.844 elementi utili, 193.531 sentieri tenuti solo per l'analisi del percorso), divisi in 64.157 celle di circa 1,8 km di lato (`server/data/osm-tiles/`, ~690 MB, non nel repository). Il browser scarica solo le celle della zona guardata e quelle attraversate dal percorso. Nessun dato inventato. Le tile della mappa sono quelle di OpenStreetMap, desaturate via CSS.
+- **Dove i dati sono pochi lo si vede.** Solo 4.641 celle su 64.157 (i centri delle città) hanno almeno 50 elementi utili; 16.632 non ne hanno nessuno. La mappa tratteggia le zone con pochi dati o nessuno, una riga di testo dice quanti elementi ci sono nella zona guardata, e l'esito di un percorso avvisa quando si conosce il fondo per meno del 25% del tragitto.
+- **Senza i dati completi l'app parte lo stesso** con lo snapshot demo della zona universitaria di Pisa (`server/data/osm-pisa.json`, 24/10/2026, 1158 elementi) e lo dichiara nella legenda. I dati completi si pubblicano come allegato della release `osm-data`, rigenerato ogni lunedì da `.github/workflows/osm-data.yml`.
+- **Valhalla** (istanza pubblica FOSSGIS): percorsi, istruzioni di svolta, aggancio delle segnalazioni alla rete pedonale. **Nominatim**: ricerca indirizzi (1 richiesta al secondo, limitata all'Italia). **OSRM** (FOSSGIS): ripiego pedonale, dichiarato.
 - **Gemma 4** via Google AI Studio: lettura delle segnalazioni, risposta in JSON validata lato server.
 - **ElevenLabs**: Scribe v2 (trascrizione) e Flash v2.5 (sintesi), solo tramite il server. Nessun audio o trascrizione viene conservato.
 
@@ -164,7 +223,9 @@ Le segnalazioni sono salvate in `server/data/reports.json` e le foto in `server/
 - La guida vocale funziona solo con la pagina aperta e lo schermo acceso e non ricalcola da sola se esci dal percorso. È stata verificata nel browser con un microfono simulato e audio sintetico, non camminando con un telefono reale.
 - OpenRouteService e Ollama sono coperti dai test con risposte simulate ma non provati contro i servizi reali.
 - Persistenza su file: adatta a una demo, non a più istanze o a molti utenti. Nessuna autenticazione, un solo codice moderatore condiviso.
-- Solo Pisa, zona universitaria.
+- Solo l'Italia (confini delle 20 regioni semplificati, con 2 km di margine; San Marino è fuori) e percorsi fino a 10 km in linea d'aria: ogni percorso candidato viene verificato tratto per tratto su un'istanza pubblica di Valhalla con limiti d'uso.
+- Fuori dai centri delle città OpenStreetMap ha pochi dati sull'accessibilità: lì "nessun ostacolo noto" vuol dire soprattutto "nessun dato". I percorsi demo e le verifiche più accurate restano quelli di Pisa; nelle altre città l'app è stata provata solo su qualche percorso.
+- I sentieri (`highway=path` senza indizi urbani, regola in `shared/osmClassify.ts`) non sono disegnati sulla mappa: compaiono solo se il percorso calcolato ne usa uno.
 
 ## Licenze e attribuzioni
 

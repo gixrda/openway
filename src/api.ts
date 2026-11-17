@@ -1,5 +1,5 @@
 import type {
-  GeocodeResult, OsmDataset, Report, ReportCategory, ReportDraft, RouteResult, ServerStatus, VerificationStatus,
+  GeocodeResult, Report, ReportCategory, ReportDraft, RouteResult, ServerStatus, VerificationStatus,
 } from '../shared/types.ts';
 import { langHeaders, t } from './i18n/index.ts';
 
@@ -19,7 +19,6 @@ type Point = { lat: number; lng: number };
 
 export const api = {
   status: () => request<ServerStatus>('/api/status'),
-  osm: () => request<OsmDataset>('/api/osm'),
   reports: () => request<Report[]>('/api/reports'),
   draftReport: (body: { description: string; photo?: string }) =>
     request<ReportDraft>('/api/reports/draft', { method: 'POST', body: JSON.stringify(body) }),

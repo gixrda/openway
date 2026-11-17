@@ -23,8 +23,11 @@ export interface OsmFeature {
   certainty: Certainty;
   /** path = elemento del percorso pedonale; place = accessibilità di un luogo (negozio, edificio…) */
   scope: 'path' | 'place';
-  label: string;
+  /** Etichetta in italiano salvata nello snapshot demo; le celle della griglia non la contengono (si ricalcola dai tag) */
+  label?: string;
   name?: string;
+  /** Sentiero (regola in shared/osmClassify.ts): usato nell'analisi del percorso, non disegnato sulla mappa */
+  trail?: boolean;
   geometry: { type: 'point'; coords: LatLngTuple } | { type: 'line'; coords: LatLngTuple[] };
   tags: Record<string, string>;
 }
@@ -156,13 +159,6 @@ export interface ServerStatus {
 
 export interface GeocodeResult { label: string; lat: number; lng: number }
 
-// Limiti geografici accettati (comune di Pisa, approssimato) e area demo (zona universitaria).
-export const PISA_BOUNDS: [number, number, number, number] = [43.66, 10.33, 43.76, 10.47];
+// Area dello snapshot demo incluso nel repository (zona universitaria di Pisa): la usa solo scripts/fetch-osm.ts.
+// I limiti geografici dell'app (la Toscana) sono in shared/area.ts.
 export const DEMO_BBOX: [number, number, number, number] = [43.7120, 10.3930, 43.7240, 10.4100];
-
-export function inPisa(lat: unknown, lng: unknown): boolean {
-  const [s, w, n, e] = PISA_BOUNDS;
-  return typeof lat === 'number' && typeof lng === 'number'
-    && Number.isFinite(lat) && Number.isFinite(lng)
-    && lat >= s && lat <= n && lng >= w && lng <= e;
-}

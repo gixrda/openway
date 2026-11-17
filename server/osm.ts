@@ -1,4 +1,4 @@
-import { classifyPath, classifyPlace } from '../shared/osmClassify.ts';
+import { classifyPath, classifyPlace, isTrail } from '../shared/osmClassify.ts';
 import type { LatLngTuple, OsmFeature } from '../shared/types.ts';
 
 // Le regole di classificazione stanno in shared/: servono anche all'interfaccia per tradurre le etichette.
@@ -18,7 +18,7 @@ export function overpassQuery([s, w, n, e]: [number, number, number, number]): s
 out tags geom;`;
 }
 
-interface OverpassElement {
+export interface OverpassElement {
   type: 'node' | 'way' | 'relation';
   id: number;
   lat?: number;
@@ -57,9 +57,52 @@ export function normalizeOverpass(elements: OverpassElement[]): OsmFeature[] {
     out.push({
       id: `${el.type}/${el.id}`, source: 'osm', scope: isPath ? 'path' : 'place',
       ...c, ...(t.name ? { name: t.name } : {}), geometry, tags,
+      // I sentieri restano nei dati per l'analisi del percorso, ma non vengono disegnati sulla mappa.
+      ...(el.type === 'way' && isPath && isTrail(t) ? { trail: true } : {}),
     });
   }
   return out;
 }
 
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+const FOOT_WAYS = new Set(['footway', 'pedestrian', 'path', 'steps']);
+
+/** Stessi criteri della query Overpass, per i dati filtrati in locale da un estratto (scripts/build-osm.ts). */
+export function matchesQuery(el: OverpassElement): boolean {
+  const t = el.tags;
+  if (!t || el.type === 'relation') return false;
+  if (t.wheelchair) return true;
+  return el.type === 'way'
+    ? FOOT_WAYS.has(t.highway) || t.sidewalk !== undefined
+    : t.kerb !== undefined || t.highway === 'crossing' || t.barrier !== undefined;
+}
+
+interface GeojsonFeature {
+  id?: string;
+  geometry?: { type: string; coordinates: unknown };
+  properties?: Record<string, string> | null;
+}
+
+/**
+ * Una riga di `osmium export --add-unique-id=type_id` nella forma degli elementi Overpass (`out tags geom`).
+ * Gli id sono n<nodo>, w<way> e a<area>: un'area con numero pari viene da una way chiusa (id × 2),
+ * una con numero dispari da una relazione (ignorata, come nella query Overpass normalizzata).
+ */
+export function elementFromGeojson(f: GeojsonFeature): OverpassElement | null {
+  const m = /^([nwa])(\d+)$/.exec(f.id ?? '');
+  const g = f.geometry;
+  if (!m || !g || !f.properties) return null;
+  const tags = f.properties;
+  const num = Number(m[2]);
+  if (m[1] === 'n' && g.type === 'Point') {
+    const [lon, lat] = g.coordinates as [number, number];
+    return { type: 'node', id: num, lat, lon, tags };
+  }
+  let line: [number, number][] | undefined;
+  if (m[1] === 'w' && g.type === 'LineString') line = g.coordinates as [number, number][];
+  // Way chiusa esportata come area (es. una piazza con area=yes): si usa il contorno esterno.
+  if (m[1] === 'a' && num % 2 === 0 && g.type === 'MultiPolygon') line = (g.coordinates as [number, number][][][])[0]?.[0];
+  if (!line?.length) return null;
+  return { type: 'way', id: m[1] === 'a' ? num / 2 : num, geometry: line.map(([lon, lat]) => ({ lat, lon })), tags };
+}

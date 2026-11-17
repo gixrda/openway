@@ -1,6 +1,8 @@
 // Versione statica della landing (GitHub Pages): niente server, quindi niente /api.
-// Dati OSM e percorsi registrati vengono serviti come file; la ricerca va direttamente a Nominatim.
-import { PISA_BOUNDS, type GeocodeResult, type OsmDataset, type RouteResult } from '../../shared/types.ts';
+// I percorsi registrati vengono serviti come file (come le celle dei dati OSM, vedi src/lib/osmTiles.ts);
+// la ricerca va direttamente a Nominatim.
+import { inArea, REGION_BOUNDS } from '../../shared/area.ts';
+import type { GeocodeResult, RouteResult } from '../../shared/types.ts';
 import { getLang, t } from '../i18n/index.ts';
 import { getCopy } from './copy.ts';
 import { BASE, STATIC } from './env.ts';
@@ -16,7 +18,6 @@ async function json<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export const staticOsm = () => json<OsmDataset>('data/osm-pisa.json');
 export const staticRoutes = () => (recorded ??= json<RecordedRoutes>('data/routes-recorded.json'));
 
 // Policy Nominatim: al massimo 1 richiesta al secondo, solo all'invio (niente autocompletamento), risultati in cache.
@@ -32,9 +33,9 @@ export async function geocodeDirect(q: string): Promise<GeocodeResult[]> {
   const wait = last + 1000 - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   last = Date.now();
-  const [s, w, n, e] = PISA_BOUNDS;
+  const [s, w, n, e] = REGION_BOUNDS; // riquadro per Nominatim; il confine vero si applica ai risultati
   const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-    q: q.trim().slice(0, 200), format: 'jsonv2', limit: '5', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': lang,
+    q: q.trim().slice(0, 200), format: 'jsonv2', limit: '8', viewbox: `${w},${n},${e},${s}`, bounded: '1', countrycodes: 'it,va', 'accept-language': lang,
   })}`;
   const res = await fetch(url, { referrerPolicy: 'strict-origin-when-cross-origin' }).catch(() => null);
   if (!res?.ok) throw new Error(getCopy().routeCard.searchDown);
@@ -42,7 +43,8 @@ export async function geocodeDirect(q: string): Promise<GeocodeResult[]> {
   // I dati arrivano da un servizio esterno: si tengono solo campi del tipo atteso, mai HTML.
   const results = (Array.isArray(data) ? data : [])
     .filter((r) => typeof r.display_name === 'string' && Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lon)))
-    .map((r) => ({ label: String(r.display_name).slice(0, 300), lat: Number(r.lat), lng: Number(r.lon) }));
+    .map((r) => ({ label: String(r.display_name).slice(0, 300), lat: Number(r.lat), lng: Number(r.lon) }))
+    .filter((r) => inArea(r.lat, r.lng)).slice(0, 5);
   cache.set(key, results);
   return results;
 }

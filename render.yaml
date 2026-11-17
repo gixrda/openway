@@ -1,0 +1,15 @@
+# Blueprint per pubblicare la demo dell'app completa su Render (piano gratuito).
+# Passi e limiti: README, sezione "Pubblicare l'app". L'immagine è quella del Dockerfile.
+services:
+  - type: web
+    name: openway
+    runtime: docker
+    plan: free
+    region: frankfurt # la più vicina all'Italia
+    healthCheckPath: /api/status
+    envVars:
+      # Porta su cui Render inoltra le richieste: il server la legge da PORT.
+      - key: PORT
+        value: 10000
+    # Chiavi facoltative (GEMINI_API_KEY, ELEVENLABS_API_KEY, ADMIN_TOKEN, ORS_API_KEY): si aggiungono a mano
+    # nella scheda Environment del servizio, mai qui. Senza chiavi l'app usa i ripieghi dichiarati.

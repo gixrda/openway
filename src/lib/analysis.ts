@@ -27,6 +27,7 @@ const POINT_M = 5; // distanza massima di un nodo (cordolo, barriera…) dal per
 const LINE_M = 4; // distanza massima tra percorso e una via mappata per considerarla "percorsa"
 const REPORT_M = 15; // le posizioni scelte dagli utenti sono meno precise
 const STEP_M = 5; // passo di campionamento del percorso
+const GRID_M = 50; // lato delle caselle dell'indice dei campioni
 
 function lineLength(line: XY[]): number {
   let len = 0;
@@ -81,10 +82,28 @@ export function analyzeRoute(route: LatLngTuple[], features: OsmFeature[], repor
   const alongM: Record<string, number> = {};
   const covered = new Array<boolean>(samples.length).fill(false);
 
-  const xs = routeXY.map((p) => p[0]), ys = routeXY.map((p) => p[1]);
-  const pad = REPORT_M + 1;
-  const [minX, maxX, minY, maxY] = [Math.min(...xs) - pad, Math.max(...xs) + pad, Math.min(...ys) - pad, Math.max(...ys) + pad];
-  const outside = (pts: XY[]) => pts.every((p) => p[0] < minX || p[0] > maxX || p[1] < minY || p[1] > maxY);
+  // Indice dei campioni del percorso su una griglia di GRID_M metri: per ogni elemento si guardano solo i campioni
+  // delle caselle vicine. Con i dati di una regione intera un confronto "tutti con tutti" sarebbe troppo lento.
+  const grid = new Map<string, number[]>();
+  const cell = (v: number) => Math.floor(v / GRID_M);
+  samples.forEach((p, i) => {
+    const key = `${cell(p[0])},${cell(p[1])}`;
+    const list = grid.get(key);
+    if (list) list.push(i); else grid.set(key, [i]);
+  });
+  /** Indici dei campioni nelle caselle che toccano il riquadro dei punti dati, allargato di pad metri (in ordine di percorrenza). */
+  const candidates = (pts: XY[], pad: number): number[] => {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const [x, y] of pts) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+    const out: number[] = [];
+    for (let cx = cell(minX - pad); cx <= cell(maxX + pad); cx++) {
+      for (let cy = cell(minY - pad); cy <= cell(maxY + pad); cy++) {
+        const list = grid.get(`${cx},${cy}`);
+        if (list) for (const i of list) out.push(i);
+      }
+    }
+    return out.sort((x, y) => x - y);
+  };
 
   const result = { ...empty, known: [] as OsmFeature[], possible: [] as OsmFeature[], positive: [] as OsmFeature[], unknown: [] as OsmFeature[] };
   for (const f of features) {
@@ -92,17 +111,15 @@ export function analyzeRoute(route: LatLngTuple[], features: OsmFeature[], repor
     let onRoute: boolean;
     if (f.geometry.type === 'point') {
       const p = xy(f.geometry.coords);
-      if (outside([p])) continue;
+      // Un campione ogni STEP_M metri: se nessuno è entro POINT_M + STEP_M, il percorso non passa di lì.
+      if (!candidates([p], POINT_M + STEP_M).length) continue;
       onRoute = distToLine(p, routeXY) <= POINT_M;
       if (onRoute) alongM[f.id] = alongRoute(p, routeXY);
     } else {
       const line = f.geometry.coords.map(xy);
-      const lx = line.map((p) => p[0]), ly = line.map((p) => p[1]);
-      if (Math.max(...lx) < minX || Math.min(...lx) > maxX || Math.max(...ly) < minY || Math.min(...ly) > maxY) continue;
-      const near: number[] = [];
-      samples.forEach((s, i) => { if (distToLine(s, line) <= LINE_M) near.push(i); });
+      const near = candidates(line, LINE_M).filter((i) => distToLine(samples[i], line) <= LINE_M);
       // Un incrocio perpendicolare copre al massimo ~2 campioni (10 m): serve una sovrapposizione maggiore.
-      onRoute = near.length * STEP_M >= Math.min(15, lineLength(line) / 2);
+      onRoute = near.length > 0 && near.length * STEP_M >= Math.min(15, lineLength(line) / 2);
       if (onRoute) {
         for (const i of near) covered[i] = true;
         alongM[f.id] = sampleAlong[near[0]];

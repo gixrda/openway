@@ -13,8 +13,11 @@ const ITEMS: { key: keyof Layers; tone: string }[] = [
 ];
 
 /** Capsula di controlli flottante sulla mappa: cosa mostrare, dove sono e in che lingua leggere. */
-export function MapControls({ layers, onLayers, osmDate, onLocate, locating, onLanguage }: {
-  layers: Layers; onLayers: (l: Layers) => void; osmDate?: string; onLocate: () => void; locating: boolean; onLanguage: () => void;
+export function MapControls({ layers, onLayers, osmDate, demoOnly, onLocate, locating, onLanguage }: {
+  layers: Layers; onLayers: (l: Layers) => void; osmDate?: string;
+  /** true se sono caricati solo i dati demo di Pisa (mancano quelli regionali) */
+  demoOnly?: boolean;
+  onLocate: () => void; locating: boolean; onLanguage: () => void;
 }) {
   const s = useT();
   const m = s.map;
@@ -69,8 +72,11 @@ export function MapControls({ layers, onLayers, osmDate, onLocate, locating, onL
             <span className="pin-mini pin-mini--ok" aria-hidden="true">✓</span> {m.legendChecked}
             <span className="pin-mini pin-mini--block" aria-hidden="true" /> {m.legendBlocks}
           </p>
+          <p className="layers__legend"><span className="hatch-key hatch-key--none" aria-hidden="true" /> {m.legendNoData}</p>
+          <p className="layers__legend"><span className="hatch-key hatch-key--few" aria-hidden="true" /> {m.legendFewData}</p>
           <p className="layers__legend">
             {m.legendNote(osmDate ? formatDate(osmDate, { dateStyle: 'short' }) : null)}
+            {demoOnly && ` ${m.legendDemoOnly}`}
           </p>
         </div>
       )}

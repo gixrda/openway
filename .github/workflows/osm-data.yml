@@ -1,0 +1,44 @@
+# Costruisce la griglia dei dati OpenStreetMap di tutta l'Italia (npm run osm:build) e la pubblica come allegato
+# della release "osm-data": i file sono troppo grandi per stare nel repository (~690 MB, ~64.000 celle; ~125 MB compressi).
+# La landing su GitHub Pages e chi sviluppa li scaricano con `npm run osm:download`.
+# Azioni bloccate su commit SHA; solo questo job può scrivere, e solo per aggiornare la release.
+name: Dati OSM
+
+on:
+  schedule:
+    - cron: '17 3 * * 1' # ogni lunedì: Geofabrik aggiorna l'estratto ogni giorno, una volta a settimana basta
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osm-data
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends osmium-tool
+      - run: npm ci --ignore-scripts
+      - run: npm run osm:build
+      - run: tar -czf osm-tiles.tar.gz -C server/data osm-tiles
+      - name: Pubblica l'archivio nella release osm-data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view osm-data >/dev/null 2>&1 || gh release create osm-data --latest=false \
+            --title "Dati OpenStreetMap (Italia)" \
+            --notes "Griglia dei dati OSM usata da OpenWay, rigenerata ogni settimana da .github/workflows/osm-data.yml. © OpenStreetMap contributors, ODbL."
+          gh release upload osm-data osm-tiles.tar.gz --clobber

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -14,8 +14,11 @@ let dir: string;
 
 async function start(env: Env) {
   dir = await mkdtemp(join(tmpdir(), 'openway-'));
-  await writeFile(join(dir, 'osm.json'), JSON.stringify({ source: 'test', fetchedAt: '', bbox: [0, 0, 0, 0], features: [] }));
-  const api = createApi({ env, reportsFile: join(dir, 'reports.json'), osmFile: join(dir, 'osm.json') });
+  // Griglia OSM minima: un indice e una sola cella.
+  await mkdir(join(dir, 'osm', '14', '8665'), { recursive: true });
+  await writeFile(join(dir, 'osm', 'index.json'), JSON.stringify({ source: 'test', fetchedAt: '', scope: 'demo', zoom: 14, cols: { 8665: [[5975, 2]] } }));
+  await writeFile(join(dir, 'osm', '14', '8665', '5975.json'), JSON.stringify({ features: [{ id: 'node/1' }] }));
+  const api = createApi({ env, reportsFile: join(dir, 'reports.json'), osmDir: join(dir, 'osm') });
   server = createServer((req, res) => { api(req, res).then((h) => { if (!h) { res.statusCode = 404; res.end(); } }); });
   await new Promise<void>((r) => server.listen(0, r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -52,8 +55,16 @@ describe('API senza credenziali', () => {
     expect((await res.json()).error).toMatch(/non è configurato/);
   });
 
-  it('serve il dataset OSM', async () => {
-    expect((await (await call('/api/osm')).json()).source).toBe('test');
+  it("serve l'indice e le singole celle dei dati OSM, mai tutto insieme", async () => {
+    expect((await (await call('/api/osm/index.json')).json()).cols).toEqual({ 8665: [[5975, 2]] });
+    const cell = await call('/api/osm/14/8665/5975.json');
+    expect(cell.status).toBe(200);
+    expect((await cell.json()).features).toEqual([{ id: 'node/1' }]);
+    expect((await call('/api/osm/14/8665/1.json')).status).toBe(404); // cella senza dati
+    expect((await call('/api/osm')).status).toBe(404); // il vecchio file unico non esiste più
+    // Solo numeri nel percorso: niente risalite di cartella né altri livelli di zoom.
+    expect((await call('/api/osm/14/..%2F..%2Freports/5975.json')).status).toBe(404);
+    expect((await call('/api/osm/13/8665/5975.json')).status).toBe(404);
   });
 
   it('crea una segnalazione non verificata con tutti i campi richiesti e la persiste', async () => {
@@ -74,7 +85,7 @@ describe('API senza credenziali', () => {
   });
 
   it.each([
-    [{ lat: 45.4, lng: 9.19, description: 'gradino troppo alto' }, 400], // Milano
+    [{ lat: 43.7102, lng: 7.262, description: 'gradino troppo alto' }, 400], // Nizza: fuori dall'Italia
     [{ lat: 'x', lng: 10.4, description: 'gradino troppo alto' }, 400],
     [{ ...PISA, description: 'corto' }, 400],
     [{ ...PISA, description: 'x'.repeat(1001) }, 400],
@@ -216,6 +227,19 @@ describe('API senza credenziali', () => {
     mockExternal((url) => url.includes('valhalla') ? new Response('', { status: 502 }) : Response.json(OSRM_OK));
     expect(await (await post('/api/route', { from: PISA, to: PISA, profile: 'foot' })).json()).toMatchObject({ mode: 'foot', provider: 'osrm-fossgis' });
     expect((await post('/api/route', { from: PISA, to: PISA, profile: 'auto' })).status).toBe(400);
+  });
+
+  it('rifiuta i percorsi fuori dall\'Italia o troppo lunghi senza chiamare i servizi di routing', async () => {
+    const calls: string[] = [];
+    mockExternal((url) => { calls.push(url); return new Response('', { status: 503 }); });
+    const LUCCA = { lat: 43.8429, lng: 10.5027 }; // ~16 km da Pisa in linea d'aria: oltre il limite di 10 km
+    const far = await post('/api/route', { from: PISA, to: LUCCA });
+    expect(far.status).toBe(400);
+    expect((await far.json()).error).toMatch(/fino a 10 km/);
+    const outside = await post('/api/route', { from: { lat: 43.7912, lng: 7.6076 }, to: { lat: 43.7102, lng: 7.262 } }); // Ventimiglia → Nizza
+    expect(outside.status).toBe(400);
+    expect((await outside.json()).error).toBe('Partenza e arrivo devono essere in Italia.');
+    expect(calls).toEqual([]);
   });
 
   it('valida le coordinate del percorso', async () => {

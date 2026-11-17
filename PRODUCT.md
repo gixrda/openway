@@ -8,14 +8,14 @@ web
 
 ## Users
 
-- People who move in a wheelchair in Pisa (university area), and the people who accompany them, planning a route before leaving or while moving.
+- People who move in a wheelchair in Italy (the project started in the university area of Pisa), and the people who accompany them, planning a route before leaving or while moving.
 - People evaluating the prototype: hackathon jury, local bodies, potential partners. They need to understand method, data sources and limits.
 
 The landing page speaks to both (confirmed 2026-10-25).
 
 ## Product Purpose
 
-OpenWay ("Freedom to move.") computes a wheelchair route in Pisa, compares it with OpenStreetMap accessibility data and user reports, and says clearly what is known, what is only probable and what is missing. Success: a person understands a route before leaving, and contributes reports that improve the data for others.
+OpenWay ("Freedom to move.") computes a wheelchair route in Italy, compares it with OpenStreetMap accessibility data and user reports, and says clearly what is known, what is only probable and what is missing. Success: a person understands a route before leaving, and contributes reports that improve the data for others.
 
 ## Positioning
 
@@ -35,7 +35,7 @@ OpenWay never declares a route "accessible" or "safe". It shows what the data ca
 - Reports: point on map or GPS, text, optional photo; Gemma proposes type and asks a follow-up; reporter confirms. Every report starts "da controllare"; only a moderator marks it checked or resolved.
 - Automatic reroute when a blocking report is on the active route, verified on geometry.
 - Voice: dictation of start, destination and report text; voice guidance reads real routing instructions. No full voice commands yet.
-- Coverage: Pisa, university area only. OSM snapshot of 24/10/2026, 1158 elements.
+- Coverage: all of Italy (OSM data of 16/11/2026, 2,078,357 elements in ~64,000 grid cells), routes up to 10 km. Data is rich only in town centres; the bundled fallback snapshot covers the university area of Pisa (24/10/2026, 1158 elements).
 - Language: Italian (confirmed 2026-10-25). All landing copy centralised for localisation.
 
 ## Brand Commitments
@@ -48,7 +48,7 @@ OpenWay never declares a route "accessible" or "safe". It shows what the data ca
 ## Evidence on Hand
 
 - README demo scenarios (verified 24/10/2026, obstacles from OSM, not checked on site).
-- OSM snapshot `server/data/osm-pisa.json`: 55 known obstacles, 398 possible issues, 105 useful elements.
+- Italy OSM grid (`npm run osm:build` / `osm:download`): 158,993 known obstacles, 540,616 possible issues, 129,844 useful elements. Demo snapshot `server/data/osm-pisa.json`: 55 / 398 / 105.
 - 136 Vitest tests.
 - No testimonials, partners, user numbers, team names or contact details exist. Do not invent them.
 

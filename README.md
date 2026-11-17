@@ -104,6 +104,26 @@ Da sapere prima di rendere pubblica una demo:
 
 Dopo il deploy, scrivi l'indirizzo della demo in `DEMO_URL` (`src/landing/env.ts`): la landing su GitHub Pages lo usa per i bottoni "Apri OpenWay" e per aprire nell'app i tragitti demo. Finché è vuoto, quei bottoni portano alle istruzioni di installazione.
 
+### Su Render, piano gratuito
+
+Il file [`render.yaml`](render.yaml) descrive il servizio: un contenitore costruito dal `Dockerfile`, piano gratuito, regione di Francoforte, controllo di salute su `/api/status`. Questi passi non sono ancora stati eseguiti: il primo deploy dirà se un'immagine di 1,6 GB rientra nei limiti del piano gratuito.
+
+1. **Dati.** Su GitHub: *Actions* → *Dati OSM* → *Run workflow* (ramo `main`). Quando finisce, nella pagina *Releases* compare `osm-data` con l'archivio `osm-tiles.tar.gz`. Si fa una volta sola: poi il workflow gira da solo ogni lunedì.
+2. **Account.** Registrati su [render.com](https://render.com) (si può entrare con l'account GitHub). Se viene chiesta una carta di credito, il piano gratuito non la addebita.
+3. **Servizio.** Apri <https://render.com/deploy?repo=https://github.com/gixrda/openway>: Render legge `render.yaml` e propone il servizio `openway`. Conferma. Il repository è pubblico, quindi non serve dare a Render l'accesso all'account GitHub.
+4. **Primo build.** Dura alcuni minuti: scarica i dati OSM e costruisce l'immagine. Se si ferma con `Dati non disponibili (… HTTP 404)`, manca la release del passo 1.
+5. **Controllo.** Apri l'indirizzo assegnato (`https://openway….onrender.com`). Nella legenda della mappa (bottone dei livelli) non deve comparire "Su questo server sono caricati solo i dati della zona universitaria di Pisa". Calcola un percorso in una città qualsiasi.
+6. **Chiavi (facoltative).** Nella scheda *Environment* del servizio aggiungi `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ADMIN_TOKEN`. Render riavvia il servizio da solo.
+7. **Landing.** Scrivi l'indirizzo in `DEMO_URL` (`src/landing/env.ts`) e apri una pull request.
+
+Per pubblicare una versione nuova: *Manual Deploy* → *Deploy latest commit*. Per riscaricare anche i dati OSM: *Clear build cache & deploy*.
+
+Limiti del piano gratuito, da dire a chi usa la demo:
+
+- **Si addormenta** dopo 15 minuti senza visite: la prima pagina dopo una pausa arriva dopo circa un minuto.
+- **Le segnalazioni non restano.** Il disco è temporaneo: segnalazioni e foto inviate spariscono a ogni riavvio, cioè anche a ogni risveglio. Gli ostacoli di OpenStreetMap non sono toccati: stanno nell'immagine. Per conservarle serve un piano a pagamento con un disco montato su `/data`.
+- 750 ore di servizio al mese per account, 512 MB di memoria (il server ne usa circa 200).
+
 ---
 
 ## Come si usa

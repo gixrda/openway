@@ -1,4 +1,6 @@
 // Tipi condivisi tra frontend (src/) e backend (server/). Coordinate sempre [lat, lng].
+import type { Lang } from './lang.ts';
+
 export type LatLngTuple = [number, number];
 
 /**
@@ -87,11 +89,18 @@ export interface Report {
   impact: 'avoid' | 'caution' | 'unlocated';
   /** Risposta di chi segnala alla domanda dell'assistente: dato fornito dall'utente, non dall'AI */
   followUp?: { question: string; answer: string };
+  /**
+   * Lingua dell'interfaccia di chi ha segnalato: riassunto, domanda e risposta sono scritti in questa lingua
+   * e non vengono tradotti. Assente nelle segnalazioni precedenti alla versione multilingue (italiano).
+   */
+  lang?: Lang;
 }
 
 export interface ReportDraft { draftId: string; interpretation: Interpretation }
 
-export const NOT_SURE = 'Non so';
+/** Risposta "non so" aggiunta dall'app alle opzioni di ogni domanda, nella lingua della domanda. */
+export const NOT_SURE_BY_LANG: Record<Lang, string> = { it: 'Non so', en: "I don't know" };
+export const notSure = (lang: Lang): string => NOT_SURE_BY_LANG[lang];
 
 export interface RouteResult {
   /**
@@ -108,7 +117,7 @@ export interface RouteResult {
   notice?: string;
   /** Verifica dei tratti (pedonali, con marciapiede, in carreggiata); assente per il percorso di confronto */
   safety?: RouteSafety;
-  /** Istruzioni di svolta del servizio di routing (Valhalla, in italiano), posizionate sulla geometria; vuoto se non affidabili */
+  /** Istruzioni di svolta del servizio di routing (Valhalla, nella lingua della richiesta), posizionate sulla geometria; vuoto se non affidabili */
   maneuvers?: import('./navigation.ts').RouteManeuver[];
   /** Segnalazioni bloccanti escluse dal calcolo (aree di ~10 m attorno al punto) */
   avoidedBlocking?: number;

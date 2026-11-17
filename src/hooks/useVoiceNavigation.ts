@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useElevenLabsVoice } from './useElevenLabsVoice.ts';
 import { distanceMeters } from '../../shared/navigation.ts';
 import type { LatLngTuple } from '../../shared/types.ts';
+import { t } from '../i18n/index.ts';
 import {
   distanceInstruction, maneuverInstruction, navigationGeometry, nextManeuver, projectNavigationPosition, usableManeuvers,
   type NavigationProgress, type NavigationRoute,
 } from '../lib/navigation.ts';
-
-const INITIAL_STATUS = 'Avvia la guida quando sei vicino alla partenza. Le distanze GPS sono approssimative.';
 
 export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordinate: LatLngTuple) => void) {
   const geometry = useMemo(() => navigationGeometry(route.coords), [route.coords]);
@@ -16,7 +15,7 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
   const { speak, cancel: cancelSpeech, reset: resetVoice } = voice;
   const [gpsSupported, setGpsSupported] = useState(false);
   const [active, setActive] = useState(false);
-  const [status, setStatus] = useState(INITIAL_STATUS);
+  const [status, setStatus] = useState(() => t().nav.initial);
   const [distanceM, setDistanceM] = useState(0);
   const [upcomingIndex, setUpcomingIndex] = useState<number | null>(null);
   const [readyPosition, setReadyPosition] = useState(false);
@@ -43,7 +42,7 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
     cancelSpeech();
   }, [cancelSpeech]);
 
-  const stop = useCallback((message = 'Guida vocale interrotta. Puoi riavviarla dalla partenza.') => {
+  const stop = useCallback((message = t().nav.stopped) => {
     clear();
     setActive(false);
     setReadyPosition(false);
@@ -68,18 +67,18 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
     setUpcomingIndex(null);
     setReadyPosition(false);
     setArrived(false);
-    setStatus(INITIAL_STATUS);
+    setStatus(t().nav.initial);
     return clear;
   }, [route, clear, resetVoice]);
 
   useEffect(() => {
     const hidden = () => {
       if (document.hidden) {
-        if (running.current) stop('Guida in pausa: riapri OpenWay, ricalcola dalla tua posizione e riavvia la guida. Il browser non garantisce la guida a schermo spento.');
+        if (running.current) stop(t().nav.paused);
         else cancelSpeech();
       }
     };
-    const leaving = () => { if (running.current) stop('Guida interrotta. Riavviala quando torni su OpenWay.'); else cancelSpeech(); };
+    const leaving = () => { if (running.current) stop(t().nav.left); else cancelSpeech(); };
     document.addEventListener('visibilitychange', hidden);
     window.addEventListener('pagehide', leaving);
     return () => {
@@ -94,7 +93,7 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
       if (running.current && lastFix.current && Date.now() - lastFix.current > 15_000) {
         cancelSpeech();
         setReadyPosition(false);
-        setStatus('Posizione GPS non aggiornata. Indicazioni in attesa.');
+        setStatus(t().nav.gpsStale);
       }
     }, 5000);
     return () => clearInterval(timer);
@@ -119,7 +118,7 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
     setReadyPosition(false);
     setArrived(false);
     setActive(true);
-    setStatus('Attendo una posizione GPS precisa. Consenti l’accesso alla posizione nel browser.');
+    setStatus(t().nav.gpsWaiting);
     // Unlock audio in this user gesture; do not spend a TTS request on a synthetic startup instruction.
     void voice.activate();
     try {
@@ -148,7 +147,7 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
           const arrival = maneuvers.at(-1);
           if (arrival && arrival.type === 'arrive') speak(arrival.instruction);
           setArrived(true);
-          setStatus('Vicino alla destinazione secondo il GPS. Controlla il punto di arrivo sulla mappa.');
+          setStatus(t().nav.nearDestination);
           running.current = false;
           epoch.current += 1;
           if (watch.current !== null) navigator.geolocation.clearWatch(watch.current);
@@ -164,7 +163,7 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
         if (lastGuidanceIndex.current !== null && next?.index !== lastGuidanceIndex.current) cancelSpeech();
         lastGuidanceIndex.current = next?.index ?? null;
         setUpcomingIndex(next?.index ?? null);
-        setStatus('Guida attiva. Mantieni OpenWay aperto e lo schermo acceso.');
+        setStatus(t().nav.active);
         if (!next) return;
         const isFinalArrival = next.index === maneuvers.length - 1 && next.maneuver.type === 'arrive';
         const nearCoordinate = distanceMeters(coordinate, next.maneuver.coordinate);
@@ -181,12 +180,11 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
         if (!current()) return;
         cancelSpeech();
         setReadyPosition(false);
-        if (error.code === 1) stop('Posizione non autorizzata. Abilitala nelle impostazioni del browser per usare la guida vocale.');
-        else setStatus(error.code === 3 ? 'GPS in attesa: ricerca della posizione scaduta. Le indicazioni riprenderanno con un segnale preciso.'
-          : 'Posizione non disponibile. Indicazioni in attesa di un segnale GPS preciso.');
+        if (error.code === 1) stop(t().nav.gpsDenied);
+        else setStatus(error.code === 3 ? t().nav.gpsTimeout : t().nav.gpsUnavailable);
       }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 });
     } catch {
-      stop('Impossibile accedere alla posizione. Controlla i permessi del browser.');
+      stop(t().nav.gpsError);
     }
   }
 
@@ -194,7 +192,7 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
     const selected = typeof index === 'number' && Number.isInteger(index) ? maneuvers[index] : null;
     const next = selected ? { maneuver: selected, distanceM: 0, index: index! }
       : nextManeuver(maneuvers, distanceM, completed.current) ?? (maneuvers.length ? { maneuver: maneuvers[0], distanceM: 0, index: 0 } : null);
-    if (next) speak(`Anteprima dell’indicazione: ${maneuverInstruction(maneuvers, next.index)}`);
+    if (next) speak(t().nav.previewSpoken(maneuverInstruction(maneuvers, next.index)));
   }
 
   const upcoming = upcomingIndex !== null ? maneuvers[upcomingIndex] : null;
@@ -205,6 +203,6 @@ export function useVoiceNavigation(route: NavigationRoute, onPosition?: (coordin
     readyPosition, distanceM, remainingM: Math.max(0, (geometry?.totalM ?? 0) - distanceM),
     upcoming, upcomingInstruction: upcomingIndex !== null ? maneuverInstruction(maneuvers, upcomingIndex) : null,
     upcomingDistanceM: upcoming ? Math.max(0, upcoming.routeDistanceM - distanceM) : null,
-    start, stop: () => stop(), preview, testVoice: () => speak('Questa è la voce italiana di OpenWay, generata da ElevenLabs. La prova audio non avvia la navigazione.'),
+    start, stop: () => stop(), preview, testVoice: () => speak(t().nav.testSpoken),
   };
 }

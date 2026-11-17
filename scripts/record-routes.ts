@@ -4,10 +4,10 @@
 import { writeFile } from 'node:fs/promises';
 import type { RouteResult } from '../shared/types.ts';
 import { getRoute } from '../server/routing.ts';
-import { copy } from '../src/landing/copy.ts';
+import { SCENARIOS } from '../src/landing/copy.ts';
 
 const routes: Record<string, RouteResult> = {};
-for (const s of copy.demo.scenarios) {
+for (const s of SCENARIOS) {
   const route = await getRoute({ lat: s.from[0], lng: s.from[1] }, { lat: s.to[0], lng: s.to[1] }, {});
   routes[`${s.from.join(',')}|${s.to.join(',')}`] = route;
   console.log(`${s.name}: ${route.mode} (${route.provider}), ${Math.round(route.distanceM)} m`);

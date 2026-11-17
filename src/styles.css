@@ -197,6 +197,8 @@ code { font-size: 0.85em; background: var(--fill); padding: 1px 5px; border-radi
 .controls { position: absolute; z-index: 1000; top: var(--gutter); right: var(--gutter); }
 .controls__capsule { display: flex; flex-direction: column; align-items: center; padding: 4px; border-radius: 26px; }
 .controls__sep { width: 24px; height: 1px; background: var(--line); }
+/* Cambio lingua: la sigla della lingua a cui si passa, con la stessa area di tocco degli altri controlli */
+.controls__lang { font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.02em; }
 .layers {
   position: absolute; top: 0; right: calc(100% + 10px); width: 300px; padding: var(--s4); border-radius: var(--r-lg);
   display: flex; flex-direction: column; gap: var(--s3); font-size: var(--fs-sm);

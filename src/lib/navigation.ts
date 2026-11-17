@@ -1,5 +1,6 @@
 import type { LatLngTuple, RouteResult } from '../../shared/types.ts';
 import { distanceMeters, routeDistances, type RouteManeuver } from '../../shared/navigation.ts';
+import { t } from '../i18n/index.ts';
 
 export type NavigationRoute = Pick<RouteResult, 'coords' | 'distanceM' | 'mode'> & { maneuvers?: RouteManeuver[] };
 export interface NavigationGeometry { coords: LatLngTuple[]; cumulative: number[]; totalM: number }
@@ -39,14 +40,14 @@ export function projectNavigationPosition(
 ): ProjectionResult {
   if (!Number.isFinite(fix.timestamp) || now - fix.timestamp > 15_000 || fix.timestamp > now + 5_000
     || (previous && fix.timestamp <= previous.timestamp)) {
-    return { status: 'stale', message: 'Posizione GPS non aggiornata. Indicazioni in attesa.' };
+    return { status: 'stale', message: t().nav.gpsStale };
   }
   if (!Number.isFinite(fix.accuracyM) || fix.accuracyM < 0 || fix.accuracyM > 35
     || fix.coordinate.some((value) => !Number.isFinite(value))) {
-    return { status: 'imprecise', message: 'GPS poco preciso. Attendo una posizione migliore prima di dare indicazioni.' };
+    return { status: 'imprecise', message: t().nav.gpsImprecise };
   }
   if (!previous && distanceMeters(fix.coordinate, geometry.coords[0]) > 45) {
-    return { status: 'start', message: 'Raggiungi la partenza per avviare le indicazioni, oppure ricalcola dalla tua posizione.' };
+    return { status: 'start', message: t().nav.reachStart };
   }
   const elapsedS = previous ? Math.min(30, (fix.timestamp - previous.timestamp) / 1000) : 0;
   const lowerM = previous ? Math.max(0, previous.distanceM - 25) : 0;
@@ -76,10 +77,10 @@ export function projectNavigationPosition(
     }
   }
   if (!best || best.offRouteM > Math.max(25, Math.min(45, fix.accuracyM * 1.5))) {
-    return { status: 'off-route', message: 'Sei fuori percorso o il GPS è instabile. Fermati e ricalcola il percorso quando necessario.' };
+    return { status: 'off-route', message: t().nav.offRoute };
   }
   if (previous && best.distanceM < previous.distanceM - 20) {
-    return { status: 'jump', message: 'La posizione non segue il percorso. Controlla la mappa o ricalcola dalla tua posizione.' };
+    return { status: 'jump', message: t().nav.jump };
   }
   return {
     status: 'ready', offRouteM: best.offRouteM,
@@ -96,13 +97,13 @@ export function nextManeuver(maneuvers: RouteManeuver[], progressM: number, comp
 }
 
 export function distanceInstruction(instruction: string, distanceM: number): string {
-  return distanceM > 25 ? `Tra circa ${Math.max(10, Math.round(distanceM / 10) * 10)} metri: ${instruction}` : instruction;
+  return distanceM > 25 ? t().nav.inDistance(Math.max(10, Math.round(distanceM / 10) * 10), instruction) : instruction;
 }
 
 export function maneuverInstruction(maneuvers: RouteManeuver[], index: number): string {
   const step = maneuvers[index];
   if (step.type === 'arrive' && index < maneuvers.length - 1) {
-    return `Tappa ${String.fromCharCode(66 + step.legIndex)}: ${step.instruction} Il percorso continua con la tappa successiva.`;
+    return t().nav.stage(String.fromCharCode(66 + step.legIndex), step.instruction);
   }
   return step.instruction;
 }

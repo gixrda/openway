@@ -2,7 +2,7 @@ import { MotionConfig, animate, motion, useInView, useReducedMotion, type Varian
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../components/Icon.tsx';
 import type { IconName } from '../lib/icons.ts';
-import { copy, REPO_URL } from './copy.ts';
+import { REPO_URL, useCopy } from './copy.ts';
 import { BASE } from './staticData.ts';
 
 const list: Variants = { hidden: {}, shown: { transition: { staggerChildren: 0.18, delayChildren: 0.2 } } };
@@ -21,10 +21,9 @@ function useReveal() {
   return reduce ? { initial: false as const, animate: 'shown' } : { initial: 'hidden', whileInView: 'shown', viewport: { once: true, amount: 0.35 } };
 }
 
-const v = copy.benefits.visual;
-
 /** Un tratto di percorso: la linea si disegna, poi i punti di attenzione compaiono nell'ordine in cui si incontrano. */
 function AlongVisual() {
+  const v = useCopy().benefits.visual;
   const reduce = useReducedMotion();
   return (
     <motion.div className="ow-along" variants={list} {...useReveal()}>
@@ -46,6 +45,7 @@ function AlongVisual() {
 }
 
 function MissingVisual() {
+  const v = useCopy().benefits.visual;
   return (
     <motion.ul className="ow-missing" variants={list} {...useReveal()}>
       {v.missing.map((m) => (
@@ -60,6 +60,7 @@ function MissingVisual() {
 
 /** Gli stati reali di una segnalazione, uno dopo l'altro: chi li cambia è sempre un moderatore. */
 function StatusVisual() {
+  const v = useCopy().benefits.visual;
   return (
     <motion.div className="ow-status" variants={list} {...useReveal()}>
       <ol className="ow-status__steps">
@@ -75,6 +76,7 @@ function StatusVisual() {
 }
 
 function ModesVisual() {
+  const v = useCopy().benefits.visual;
   return (
     <motion.ul className="ow-modes" variants={list} {...useReveal()}>
       {v.modes.map((m) => (
@@ -89,7 +91,7 @@ function ModesVisual() {
 const VISUALS: Record<string, () => ReactNode> = { lungo: AlongVisual, manca: MissingVisual, aiuta: StatusVisual, modi: ModesVisual };
 
 export function Benefits() {
-  const b = copy.benefits;
+  const b = useCopy().benefits;
   return (
     <section id="benefici" className="ow-section ow-benefits" aria-labelledby="ow-benefits-title">
       <MotionConfig reducedMotion="user">
@@ -122,6 +124,7 @@ export function Benefits() {
 /** Numero che conta fino al valore reale quando entra nella vista; con "riduci movimento" compare subito. */
 function CountUp({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
+  const locale = useCopy().locale;
   const inView = useInView(ref, { once: true, amount: 0.6 });
   const reduce = useReducedMotion();
   const [shown, setShown] = useState(reduce ? value : 0);
@@ -130,11 +133,11 @@ function CountUp({ value }: { value: number }) {
     const controls = animate(0, value, { duration: 1.4, ease: [0.2, 0.8, 0.2, 1], onUpdate: (n) => setShown(Math.round(n)) });
     return () => controls.stop();
   }, [inView, reduce, value]);
-  return <span ref={ref}>{shown.toLocaleString('it-IT')}</span>;
+  return <span ref={ref}>{shown.toLocaleString(locale)}</span>;
 }
 
 export function Project() {
-  const p = copy.project;
+  const p = useCopy().project;
   return (
     <section id="progetto" className="ow-section ow-project" aria-labelledby="ow-project-title">
       <MotionConfig reducedMotion="user">
@@ -144,7 +147,7 @@ export function Project() {
               <h2 id="ow-project-title" className="ow-h1" data-reveal>{p.title}</h2>
               {p.text.map((para) => <p key={para} className="ow-body-lg" data-reveal>{para}</p>)}
             </div>
-            <motion.aside className="ow-placecard" aria-label="Scheda del progetto" data-reveal whileHover={{ rotate: -0.6, y: -4 }}>
+            <motion.aside className="ow-placecard" aria-label={p.card.label} data-reveal whileHover={{ rotate: -0.6, y: -4 }}>
               <div className="ow-placecard__head">
                 <img src={`${BASE}logo.png`} alt="" width="56" height="56" />
                 <div>

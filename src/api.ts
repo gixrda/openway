@@ -1,16 +1,17 @@
 import type {
   GeocodeResult, OsmDataset, Report, ReportCategory, ReportDraft, RouteResult, ServerStatus, VerificationStatus,
 } from '../shared/types.ts';
+import { langHeaders, t } from './i18n/index.ts';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } });
+    res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...langHeaders(), ...init?.headers } });
   } catch {
-    throw new Error('Sei offline o la connessione è lenta. Controlla la rete e riprova.');
+    throw new Error(t().api.offline);
   }
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? 'Qualcosa non ha funzionato. Riprova tra poco.');
+  if (!res.ok) throw new Error((data as { error?: string } | null)?.error ?? t().api.generic);
   return data as T;
 }
 

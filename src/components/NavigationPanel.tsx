@@ -1,62 +1,64 @@
 import type { LatLngTuple, RouteResult } from '../../shared/types.ts';
+import { useT } from '../i18n/index.ts';
 import { formatDistance } from '../lib/analysis.ts';
 import { useVoiceNavigation } from '../hooks/useVoiceNavigation.ts';
 
 export function NavigationPanel({ route, onPosition }: { route: RouteResult; onPosition?: (coordinate: LatLngTuple) => void }) {
+  const n = useT().nav;
   const navigation = useVoiceNavigation(route, onPosition);
   const multiLeg = navigation.instructions.some((step) => step.legIndex > 0);
   return (
     <section className="voice-navigation" aria-labelledby="voice-navigation-title">
-      <h3 id="voice-navigation-title">Guida vocale</h3>
-      <p className="hint">Legge le indicazioni di svolta in italiano. Tieni la pagina aperta e lo schermo acceso.</p>
+      <h3 id="voice-navigation-title">{n.title}</h3>
+      <p className="hint">{n.hint}</p>
       {!navigation.available && <p className="msg msg--warn">{route.mode !== 'wheelchair'
-        ? 'Guida disattivata: questo percorso non usa il profilo sedia a rotelle.'
-        : 'Il servizio non ha fornito indicazioni di svolta utilizzabili. Puoi consultare il percorso sulla mappa.'}</p>}
-      {!navigation.supported && <p className="msg">Riproduzione audio non disponibile in questo browser.</p>}
-      {navigation.checking && <p className="hint">Verifica del servizio ElevenLabs…</p>}
-      {navigation.supported && !navigation.gpsSupported && <p className="msg">Per la guida serve un browser con posizione GPS e una connessione HTTPS. Puoi comunque ascoltare l’anteprima.</p>}
+        ? n.notWheelchair
+        : n.noManeuvers}</p>}
+      {!navigation.supported && <p className="msg">{n.audioUnsupported}</p>}
+      {navigation.checking && <p className="hint">{n.checking}</p>}
+      {navigation.supported && !navigation.gpsSupported && <p className="msg">{n.needGps}</p>}
       <div className="voice-navigation__actions">
-        <button type="button" className="btn btn--ghost" onClick={navigation.testVoice} disabled={!navigation.supported || !navigation.configured}>Prova voce ElevenLabs</button>
+        <button type="button" className="btn btn--ghost" onClick={navigation.testVoice} disabled={!navigation.supported || !navigation.configured}>{n.testVoice}</button>
         <button type="button" className="btn btn--ghost" onClick={() => navigation.preview()}
-          disabled={!navigation.supported || !navigation.configured || !navigation.available}>Ascolta prossima indicazione</button>
+          disabled={!navigation.supported || !navigation.configured || !navigation.available}>{n.listenNext}</button>
         <button type="button" className={`btn ${navigation.active ? 'btn--ghost' : 'btn--primary'}`}
           disabled={!navigation.supported || !navigation.configured || !navigation.gpsSupported || !navigation.available}
           onClick={navigation.active ? navigation.stop : navigation.start}>
-          {navigation.active ? 'Interrompi guida vocale' : 'Avvia guida vocale'}
+          {navigation.active ? n.stop : n.start}
         </button>
       </div>
       <p className="voice-navigation__status" role="status">{navigation.status}</p>
-      {navigation.audioLoading && <p className="hint" role="status">Preparazione audio ElevenLabs…</p>}
-      {navigation.audioPlaying && <p className="hint" role="status">Audio ElevenLabs in riproduzione.</p>}
+      {navigation.audioLoading && <p className="hint" role="status">{n.preparing}</p>}
+      {navigation.audioPlaying && <p className="hint" role="status">{n.playing}</p>}
       {(navigation.audioLoading || navigation.audioPlaying) && (
-        <button type="button" className="btn btn--ghost" onClick={navigation.stopAudio}>Interrompi audio in corso</button>
+        <button type="button" className="btn btn--ghost" onClick={navigation.stopAudio}>{n.stopAudio}</button>
       )}
       {navigation.voiceError && <p className="msg msg--error" role="alert">{navigation.voiceError}</p>}
       {navigation.active && navigation.readyPosition && navigation.upcoming && (
         <div className="voice-navigation__next">
-          <strong>Prossima indicazione · circa {formatDistance(navigation.upcomingDistanceM ?? 0)}</strong>
+          <strong>{n.nextIn(formatDistance(navigation.upcomingDistanceM ?? 0))}</strong>
           <p>{navigation.upcomingInstruction}</p>
-          <span className="hint">Restano circa {formatDistance(navigation.remainingM)}</span>
+          <span className="hint">{n.remaining(formatDistance(navigation.remainingM))}</span>
         </div>
       )}
       {navigation.instructions.length > 0 && (
         <details className="voice-navigation__instructions">
-          <summary>Indicazioni del percorso ({navigation.instructions.length})</summary>
+          <summary>{n.instructions(navigation.instructions.length)}</summary>
           <ol>
             {navigation.instructions.map((step, index) => (
               <li key={`${step.legIndex}-${step.shapeIndex}-${index}`}>
-                {multiLeg && <span className="hint">Tratto {String.fromCharCode(65 + step.legIndex)} → {String.fromCharCode(66 + step.legIndex)}</span>}
+                {multiLeg && <span className="hint">{n.leg} {String.fromCharCode(65 + step.legIndex)} → {String.fromCharCode(66 + step.legIndex)}</span>}
                 <p>{step.instruction}</p>
                 <button type="button" className="btn btn--ghost" disabled={!navigation.supported || !navigation.configured}
-                  onClick={() => navigation.preview(index)} aria-label={`Ascolta indicazione ${index + 1}`}>
-                  Ascolta anteprima
+                  onClick={() => navigation.preview(index)} aria-label={n.listenN(index + 1)}>
+                  {n.listenPreview}
                 </button>
               </li>
             ))}
           </ol>
         </details>
       )}
-      <p className="hint">La guida legge le indicazioni del servizio di routing. Non verifica gli ostacoli sul posto e non ricalcola automaticamente se esci dal percorso.</p>
+      <p className="hint">{n.disclaimer}</p>
     </section>
   );
 }

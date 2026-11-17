@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
+import { formatDate, useT } from '../i18n/index.ts';
 import { Icon } from './Icon.tsx';
 import type { Layers } from './MapView.tsx';
 
-const ITEMS: { key: keyof Layers; label: string; tone: string }[] = [
-  { key: 'known', label: 'Ostacoli noti', tone: 'known' },
-  { key: 'reports', label: 'Segnalazioni degli utenti', tone: 'report' },
-  { key: 'possible', label: 'Possibili difficoltà', tone: 'possible' },
-  { key: 'positive', label: 'Elementi utili', tone: 'positive' },
-  { key: 'info', label: 'Attraversamenti senza informazioni', tone: 'info' },
-  { key: 'places', label: 'Negozi e luoghi accessibili', tone: 'place' },
+const ITEMS: { key: keyof Layers; tone: string }[] = [
+  { key: 'known', tone: 'known' },
+  { key: 'reports', tone: 'report' },
+  { key: 'possible', tone: 'possible' },
+  { key: 'positive', tone: 'positive' },
+  { key: 'info', tone: 'info' },
+  { key: 'places', tone: 'place' },
 ];
 
-/** Capsula di controlli flottante sulla mappa: cosa mostrare e dove sono. */
-export function MapControls({ layers, onLayers, osmDate, onLocate, locating }: {
-  layers: Layers; onLayers: (l: Layers) => void; osmDate?: string; onLocate: () => void; locating: boolean;
+/** Capsula di controlli flottante sulla mappa: cosa mostrare, dove sono e in che lingua leggere. */
+export function MapControls({ layers, onLayers, osmDate, onLocate, locating, onLanguage }: {
+  layers: Layers; onLayers: (l: Layers) => void; osmDate?: string; onLocate: () => void; locating: boolean; onLanguage: () => void;
 }) {
+  const s = useT();
+  const m = s.map;
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -32,37 +35,42 @@ export function MapControls({ layers, onLayers, osmDate, onLocate, locating }: {
     <div className="controls" ref={root}>
       <div className="controls__capsule glass">
         <button type="button" className="btn btn--icon" aria-expanded={open} aria-controls="layers-body"
-          aria-label="Cosa mostra la mappa" title="Cosa mostra la mappa" onClick={() => setOpen(!open)}>
+          aria-label={m.whatShows} title={m.whatShows} onClick={() => setOpen(!open)}>
           <Icon name="layers" size={20} />
         </button>
         <span className="controls__sep" aria-hidden="true" />
         <button type="button" className="btn btn--icon" onClick={onLocate} disabled={locating}
-          aria-label="Mostra dove sono" title="Mostra dove sono">
+          aria-label={m.showWhere} title={m.showWhere}>
           <Icon name="locate" size={20} />
+        </button>
+        <span className="controls__sep" aria-hidden="true" />
+        {/* Il bottone mostra la lingua a cui si passa, scritta in quella lingua: la trova anche chi non legge quella corrente. */}
+        <button type="button" className="btn btn--icon controls__lang" onClick={onLanguage}
+          aria-label={s.language.switchTo} title={s.language.switchTo} lang={s.language.switchCode.toLowerCase()}>
+          {s.language.switchCode}
         </button>
       </div>
       {open && (
-        <div id="layers-body" className="layers glass" role="dialog" aria-label="Cosa mostra la mappa">
-          <h2 className="layers__title">Cosa mostra la mappa</h2>
+        <div id="layers-body" className="layers glass" role="dialog" aria-label={m.whatShows}>
+          <h2 className="layers__title">{m.whatShows}</h2>
           <fieldset>
-            <legend className="sr-only">Livelli visibili</legend>
+            <legend className="sr-only">{m.visibleLayers}</legend>
             {ITEMS.map((it) => (
               <label key={it.key} className="layer">
                 <span className={`mk mk--${it.tone} mk--inline`} aria-hidden="true" />
-                <span className="layer__label">{it.label}</span>
+                <span className="layer__label">{m.layers[it.key]}</span>
                 <input type="checkbox" className="switch" checked={layers[it.key]}
                   onChange={(e) => onLayers({ ...layers, [it.key]: e.target.checked })} />
               </label>
             ))}
           </fieldset>
           <p className="layers__legend">
-            <span className="pin-mini" aria-hidden="true">?</span> da controllare
-            <span className="pin-mini pin-mini--ok" aria-hidden="true">✓</span> controllata sul posto
-            <span className="pin-mini pin-mini--block" aria-hidden="true" /> blocca il passaggio
+            <span className="pin-mini" aria-hidden="true">?</span> {m.legendToCheck}
+            <span className="pin-mini pin-mini--ok" aria-hidden="true">✓</span> {m.legendChecked}
+            <span className="pin-mini pin-mini--block" aria-hidden="true" /> {m.legendBlocks}
           </p>
           <p className="layers__legend">
-            Le difficoltà minori compaiono avvicinando la mappa. Il riquadro tratteggiato è la zona coperta dai dati
-            {osmDate ? `, aggiornati al ${new Date(osmDate).toLocaleDateString('it-IT')}` : ''}.
+            {m.legendNote(osmDate ? formatDate(osmDate, { dateStyle: 'short' }) : null)}
           </p>
         </div>
       )}

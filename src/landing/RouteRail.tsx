@@ -1,7 +1,7 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useEffect, useRef, useState } from 'react';
-import { copy } from './copy.ts';
+import { useCopy } from './copy.ts';
 
 /**
  * Indice laterale disegnato come un percorso: ogni sezione è una tappa, la linea si riempie leggendo.
@@ -11,6 +11,7 @@ export function RouteRail() {
   const [active, setActive] = useState<string | null>(null);
   const [shown, setShown] = useState(false);
   const fill = useRef<HTMLSpanElement>(null);
+  const copy = useCopy();
 
   useEffect(() => {
     const stops = copy.rail.map((s) => document.getElementById(s.id)).filter((e): e is HTMLElement => Boolean(e));
@@ -28,7 +29,7 @@ export function RouteRail() {
   }, []);
 
   return (
-    <nav className={`ow-rail${shown ? ' is-shown' : ''}`} aria-label="Sezioni della pagina">
+    <nav className={`ow-rail${shown ? ' is-shown' : ''}`} aria-label={copy.nav.rail}>
       <span className="ow-rail__line" aria-hidden="true"><span ref={fill} className="ow-rail__fill" /></span>
       <ol>
         {copy.rail.map((s) => (

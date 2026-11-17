@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LatLngTuple, OsmFeature, Report, RouteResult } from '../../shared/types.ts';
 import { api } from '../api.ts';
 import { routeAlerts, type RouteAlert } from '../lib/alerts.ts';
+import { useLang } from '../i18n/index.ts';
 import { analyzeRoute } from '../lib/analysis.ts';
+import { getCopy } from './copy.ts';
 import { STATIC, staticOsm, staticRoutes } from './staticData.ts';
 
 /** Ostacoli OSM e segnalazioni, caricati una volta per tutta la pagina. Se mancano, la mappa resta usabile. */
@@ -21,7 +23,8 @@ export type RouteState =
   | { status: 'error'; message: string }
   | { status: 'ready'; route: RouteResult; recordedAt?: string };
 
-const cacheKey = (from: LatLngTuple, to: LatLngTuple) => `openway-route:${from.join(',')}|${to.join(',')}`;
+// Un percorso contiene testi del server (motivo della scelta, indicazioni di svolta): la cache è separata per lingua.
+const cacheKey = (lang: string, from: LatLngTuple, to: LatLngTuple) => `openway-route:${lang}:${from.join(',')}|${to.join(',')}`;
 
 // Il calcolo usa istanze pubbliche gratuite: lo stesso tragitto si chiede una volta per sessione.
 // Un ripiego a piedi non si conserva, così alla visita successiva si riprova il profilo per sedia a rotelle.
@@ -35,10 +38,11 @@ function writeCache(key: string, route: RouteResult) {
 /** Percorso reale per sedia a rotelle tra due punti; `null` non calcola nulla. `attempt` forza un nuovo tentativo. */
 export function useRoute(pair: { from: LatLngTuple; to: LatLngTuple } | null, attempt = 0): RouteState {
   const [state, setState] = useState<RouteState>({ status: 'idle' });
+  const lang = useLang();
   const from = pair?.from.join(','), to = pair?.to.join(',');
   useEffect(() => {
     if (!pair) { setState({ status: 'idle' }); return; }
-    const key = cacheKey(pair.from, pair.to);
+    const key = cacheKey(lang, pair.from, pair.to);
     const hit = readCache(key);
     if (hit) { setState({ status: 'ready', route: hit }); return; }
     let live = true;
@@ -47,9 +51,11 @@ export function useRoute(pair: { from: LatLngTuple; to: LatLngTuple } | null, at
     if (STATIC) {
       staticRoutes()
         .then((r) => {
-          const route = r.routes[`${a.join(',')}|${b.join(',')}`];
+          const saved = r.routes[`${a.join(',')}|${b.join(',')}`];
           if (!live) return;
-          setState(route ? { status: 'ready', route, recordedAt: r.recordedAt } : { status: 'error', message: 'Questo tragitto non è stato registrato.' });
+          // L'avviso di ripiego è stato registrato in italiano: qui lo si ripete nella lingua della pagina.
+          const route = saved?.mode === 'foot_fallback' && saved.notice ? { ...saved, notice: getCopy().routeCard.recordedFoot } : saved;
+          setState(route ? { status: 'ready', route, recordedAt: r.recordedAt } : { status: 'error', message: getCopy().routeCard.notRecorded });
         })
         .catch((e: Error) => { if (live) setState({ status: 'error', message: e.message }); });
       return () => { live = false; };
@@ -58,7 +64,7 @@ export function useRoute(pair: { from: LatLngTuple; to: LatLngTuple } | null, at
       .then((route) => { if (route.mode === 'wheelchair') writeCache(key, route); if (live) setState({ status: 'ready', route }); })
       .catch((e: Error) => { if (live) setState({ status: 'error', message: e.message }); });
     return () => { live = false; };
-  }, [from, to, attempt]); // la coppia è confrontata per valore, non per riferimento
+  }, [from, to, attempt, lang]); // la coppia è confrontata per valore, non per riferimento; al cambio lingua si ricalcola
   return state;
 }
 

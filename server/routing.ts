@@ -3,13 +3,13 @@ import { HttpError, USER_AGENT, type Env } from './errors.ts';
 import { distanceToRoute } from '../shared/geo.ts';
 import { routeDistances, type RouteManeuver } from '../shared/navigation.ts';
 import { RULES } from '../shared/rules.ts';
+import { currentLang, m } from './messages.ts';
 import { chooseSafest } from './safety.ts';
 
 type Point = { lat: number; lng: number };
 
-const NO_WHEELCHAIR_ROUTE = "Non abbiamo trovato un percorso per la sedia a rotelle tra questi due punti. Prova a spostare la partenza o l'arrivo.";
-const NO_ROUTE = "Non abbiamo trovato un percorso tra questi due punti. Prova a spostare la partenza o l'arrivo.";
-const WHEELCHAIR_DOWN = 'Il servizio dei percorsi per sedia a rotelle non risponde.';
+// Lingua delle istruzioni di svolta chieste a Valhalla, per lingua dell'interfaccia.
+const VALHALLA_LANGUAGE = { it: 'it-IT', en: 'en-US' } as const;
 
 /**
  * Routing per sedia a rotelle, tutto gratuito:
@@ -63,12 +63,12 @@ async function wheelchairRoute(from: Point, to: Point, env: Env, avoid: Point[])
         if (i === sources.length - 1) throw e;
         continue;
       }
-      reason = e instanceof HttpError ? e.message : WHEELCHAIR_DOWN;
+      reason = e instanceof HttpError ? e.message : m().wheelchairDown;
     }
   }
   if (unsafe) throw unsafe;
   const foot = await chooseSafest([await osrmFoot(from, to)], true);
-  return { ...foot, notice: `${reason} Ti mostriamo un normale percorso a piedi.` };
+  return { ...foot, notice: m().footShown(reason) };
 }
 
 /**
@@ -112,16 +112,16 @@ async function orsWheelchair(from: Point, to: Point, key: string, avoid: Point[]
     }),
     signal: AbortSignal.timeout(15_000),
   });
-  if (res.status === 401 || res.status === 403) throw new HttpError(502, 'OpenRouteService non è configurato correttamente.');
-  if (res.status === 429) throw new HttpError(503, 'OpenRouteService ha ricevuto troppe richieste.');
+  if (res.status === 401 || res.status === 403) throw new HttpError(502, m().orsMisconfigured);
+  if (res.status === 429) throw new HttpError(503, m().orsBusy);
   // 2009 = percorso non trovato, 2010 = punto non collegato alla rete percorribile
-  if (res.status === 404 || res.status === 400) throw new HttpError(404, NO_WHEELCHAIR_ROUTE);
-  if (!res.ok) throw new HttpError(502, 'OpenRouteService ha avuto un problema.');
+  if (res.status === 404 || res.status === 400) throw new HttpError(404, m().noWheelchairRoute);
+  if (!res.ok) throw new HttpError(502, m().orsProblem);
   const json = await res.json() as {
     features?: { geometry: { coordinates: [number, number][] }; properties: { summary: { distance?: number; duration?: number } } }[];
   };
   const f = json.features?.[0];
-  if (!f) throw new HttpError(404, NO_WHEELCHAIR_ROUTE);
+  if (!f) throw new HttpError(404, m().noWheelchairRoute);
   return {
     mode: 'wheelchair', provider: 'openrouteservice',
     coords: f.geometry.coordinates.map(([lng, lat]): LatLngTuple => [lat, lng]),
@@ -174,6 +174,7 @@ export function osrmManeuvers(route: OsrmRoute, coords: LatLngTuple[]): RouteMan
 }
 
 async function valhalla(from: Point, to: Point, type: 'wheelchair' | 'foot', alternates = 0, avoid: Point[] = []): Promise<RouteResult[]> {
+  const msg = m();
   const res = await fetch('https://valhalla1.openstreetmap.de/route', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': USER_AGENT },
@@ -184,21 +185,21 @@ async function valhalla(from: Point, to: Point, type: 'wheelchair' | 'foot', alt
       // con la penalità massima ammessa (12 h) le usa solo se non esiste alternativa, e l'analisi le segnala.
       costing_options: { pedestrian: type === 'wheelchair' ? { type, step_penalty: 43_200 } : { type } },
       ...(alternates ? { alternates } : {}),
-      // Istruzioni di svolta in italiano per la guida vocale
-      language: 'it-IT', directions_type: 'instructions',
+      // Istruzioni di svolta per la guida vocale, nella lingua dell'interfaccia
+      language: VALHALLA_LANGUAGE[currentLang()], directions_type: 'instructions',
       // Verificato dal vivo: exclude_polygons sposta il percorso, exclude_locations no.
       ...(avoid.length ? { exclude_polygons: avoid.map(avoidSquare) } : {}),
       format: 'osrm',
       shape_format: 'geojson',
     }),
     signal: AbortSignal.timeout(15_000),
-  }).catch(() => { throw new HttpError(503, WHEELCHAIR_DOWN); });
-  if (res.status === 429) throw new HttpError(503, 'Il servizio dei percorsi per sedia a rotelle è molto usato in questo momento.');
+  }).catch(() => { throw new HttpError(503, msg.wheelchairDown); });
+  if (res.status === 429) throw new HttpError(503, msg.wheelchairBusy);
   const json = await res.json().catch(() => null) as OsrmResponse | null;
   // 400: la richiesta è nostra, quindi è un caso senza percorso (es. punto dentro un'area esclusa), non un guasto.
-  if (json?.code === 'NoRoute' || res.status === 400) throw new HttpError(404, type === 'wheelchair' ? NO_WHEELCHAIR_ROUTE : NO_ROUTE);
+  if (json?.code === 'NoRoute' || res.status === 400) throw new HttpError(404, type === 'wheelchair' ? msg.noWheelchairRoute : msg.noRoute);
   const routes = json?.code === 'Ok' ? json.routes ?? [] : [];
-  if (!res.ok || !routes.length) throw new HttpError(502, 'Il servizio dei percorsi per sedia a rotelle ha avuto un problema.');
+  if (!res.ok || !routes.length) throw new HttpError(502, msg.wheelchairProblem);
   return routes.map((r) => {
     const coords = r.geometry.coordinates.map(([lng, lat]): LatLngTuple => [lat, lng]);
     return { mode: type, provider: 'valhalla', coords, distanceM: r.distance, durationS: r.duration, maneuvers: osrmManeuvers(r, coords) };
@@ -206,13 +207,14 @@ async function valhalla(from: Point, to: Point, type: 'wheelchair' | 'foot', alt
 }
 
 async function osrmFoot(from: Point, to: Point): Promise<RouteResult> {
+  const msg = m();
   const url = `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
   const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(15_000) })
-    .catch(() => { throw new HttpError(503, 'Non riusciamo a calcolare il percorso. Controlla la connessione e riprova.'); });
-  if (res.status === 429) throw new HttpError(503, 'Il servizio dei percorsi è molto usato in questo momento. Riprova tra poco.');
+    .catch(() => { throw new HttpError(503, msg.routeOffline); });
+  if (res.status === 429) throw new HttpError(503, msg.routeBusy);
   const json = await res.json().catch(() => null) as OsrmResponse | null;
-  if (!json) throw new HttpError(502, 'Il servizio dei percorsi ha avuto un problema. Riprova tra poco.');
-  if (json.code !== 'Ok' || !json.routes?.[0]) throw new HttpError(404, NO_ROUTE);
+  if (!json) throw new HttpError(502, msg.routeProblem);
+  if (json.code !== 'Ok' || !json.routes?.[0]) throw new HttpError(404, msg.noRoute);
   const r = json.routes[0];
   return {
     mode: 'foot_fallback', provider: 'osrm-fossgis',

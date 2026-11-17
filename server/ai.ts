@@ -1,5 +1,7 @@
-import { REPORT_CATEGORIES, type FollowUpQuestion, type Interpretation, type ReportCategory, type Severity } from '../shared/types.ts';
+import type { Lang } from '../shared/lang.ts';
+import { notSure, REPORT_CATEGORIES, type FollowUpQuestion, type Interpretation, type ReportCategory, type Severity } from '../shared/types.ts';
 import type { Env } from './errors.ts';
+import { currentLang, m } from './messages.ts';
 
 export const DEFAULT_GEMMA_MODEL = 'gemma-4-26b-a4b-it';
 let RETRY_MS = 1500;
@@ -20,8 +22,9 @@ export function aiProvider(env: Env): { kind: 'gemma-ollama' | 'gemma-google' | 
  */
 export async function interpret(description: string, env: Env, photo?: Photo): Promise<Interpretation> {
   const p = aiProvider(env);
-  const photoNote = photo ? ' La foto non è stata letta.' : '';
-  if (p.kind === 'fallback') return fallbackInterpret(description, `L'intelligenza artificiale non è attiva.${photoNote}`);
+  const msg = m();
+  const photoNote = photo ? msg.photoNotRead : '';
+  if (p.kind === 'fallback') return fallbackInterpret(description, `${msg.aiOff}${photoNote}`);
   const call = (img?: Photo) => p.kind === 'gemma-ollama'
     ? callOllama(env.OLLAMA_URL!, p.model!, buildPrompt(description, Boolean(img)), img)
     : callGoogle(env.GEMINI_API_KEY!, p.model!, buildPrompt(description, Boolean(img)), img);
@@ -34,30 +37,35 @@ export async function interpret(description: string, env: Env, photo?: Photo): P
       if (!photo) throw e;
       // Se il modello rifiuta l'immagine, l'interpretazione del testo resta utile: riproviamo senza foto e lo diciamo.
       raw = await call();
-      note = "L'intelligenza artificiale non è riuscita a leggere la foto.";
+      note = msg.aiPhotoFailed;
     }
     const parsed = validateInterpretation(extractJson(raw));
     // Una nota sulla foto è accettata solo se il modello ha davvero ricevuto la foto.
     if (parsed) return { ...parsed, ...(photo && !note ? {} : { photo_note: null }), engine: 'gemma', model: p.model, ...(note ? { note } : {}) };
-    return fallbackInterpret(description, `L'intelligenza artificiale ha dato una risposta non utilizzabile.${photoNote}`);
+    return fallbackInterpret(description, `${msg.aiUnusable}${photoNote}`);
   } catch {
-    return fallbackInterpret(description, `L'intelligenza artificiale non ha risposto.${photoNote}`);
+    return fallbackInterpret(description, `${msg.aiNoAnswer}${photoNote}`);
   }
 }
 
-export function buildPrompt(description: string, hasPhoto: boolean): string {
+// Il prompt resta in italiano (è quello verificato con il modello reale); cambia solo la lingua chiesta per le risposte,
+// che deve essere quella dell'interfaccia di chi segnala.
+const ANSWER_LANGUAGE: Record<Lang, string> = { it: 'italiano', en: 'inglese' };
+
+export function buildPrompt(description: string, hasPhoto: boolean, lang: Lang = currentLang()): string {
+  const language = ANSWER_LANGUAGE[lang];
   return `Sei l'assistente di OpenWay, che raccoglie segnalazioni di barriere architettoniche per persone in sedia a rotelle a Pisa.
 Leggi la segnalazione${hasPhoto ? ' e osserva la foto allegata' : ''} e rispondi SOLO con un oggetto JSON, senza testo aggiuntivo, con queste chiavi:
 - "category": una tra ${REPORT_CATEGORIES.map((c) => `"${c}"`).join(', ')}
   (steps=scale o gradini, kerb=cordolo, obstructed_sidewalk=marciapiede ostruito, uneven_surface=superficie irregolare,
   slope=pendenza, crossing=attraversamento, other=altro)
-- "obstacle": l'ostacolo in una o due parole in italiano, oppure null se non è chiaro
-- "summary": riassunto in italiano, massimo 160 caratteri, senza aggiungere fatti non presenti nel testo
+- "obstacle": l'ostacolo in una o due parole in ${language}, oppure null se non è chiaro
+- "summary": riassunto in ${language}, massimo 160 caratteri, senza aggiungere fatti non presenti nel testo
 - "severity": "low", "medium" o "high" SOLO se il testo lo dice esplicitamente, altrimenti "unknown"
 - "missing_info": elenco (max 4) di informazioni utili che mancano (es. altezza del gradino, se è temporaneo)
 - "question": UNA domanda breve (max 100 caratteri) per chiedere a chi segnala l'informazione mancante più utile
   per una persona in sedia a rotelle, con "options": da 2 a 4 risposte brevi (max 30 caratteri). Formato:
-  {"text": "...", "options": ["...", "..."]}. Non includere "Non so": viene aggiunto dall'app.
+  {"text": "...", "options": ["...", "..."]}. Non includere "${notSure(lang)}": viene aggiunto dall'app.
   Se "missing_info" non è vuoto, chiedi la più importante; usa null solo se non manca nulla di importante.
 - "blocking": true SOLO se il testo dice chiaramente che con la sedia a rotelle non si riesce a passare
   (es. "non riesco a passare", "blocca completamente il passaggio"); false se descrive una difficoltà superabile;
@@ -67,7 +75,8 @@ ${hasPhoto
   Se la foto non mostra l'ostacolo descritto, dillo. Non identificare persone e non riportare targhe.`
     : '- "photo_note": null'}
 Regole: non inventare indirizzi, coordinate, misure o gravità. Non dire mai che la segnalazione è verificata.
-La posizione è già indicata da chi segnala sulla mappa: non chiederla e non elencarla tra le informazioni mancanti.
+La posizione è già indicata da chi segnala sulla mappa: non chiederla e non elencarla tra le informazioni mancanti.${lang === 'it' ? '' : `
+Scrivi in ${language} tutti i testi che produci ("obstacle", "summary", "missing_info", "question", "options", "photo_note"), anche se la segnalazione è scritta in un'altra lingua.`}
 
 Segnalazione: """${description.replaceAll('"""', '"')}"""`;
 }
@@ -126,12 +135,15 @@ export function extractJson(text: string): unknown {
 const SEVERITIES: Severity[] = ['low', 'medium', 'high', 'unknown'];
 const str = (v: unknown, max: number) => typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
 
+// Risposte del tipo "non so": l'app ne aggiunge già una, quindi quelle proposte dal modello vengono scartate.
+const UNSURE_RE = /^non (lo )?so\.?$|^non sono sicur|^(i )?(don'?t|do not) know\.?$|^not sure|^(i'?m |i am )?unsure/i;
+
 function validateQuestion(q: unknown): FollowUpQuestion | null {
   if (!q || typeof q !== 'object') return null;
   const { text, options } = q as Record<string, unknown>;
   const t = str(text, 140);
   if (!t || !Array.isArray(options)) return null;
-  const opts = [...new Set(options.map((o) => str(o, 40)).filter((o): o is string => o !== null && !/^non (lo )?so\.?$|^non sono sicur/i.test(o)))].slice(0, 4);
+  const opts = [...new Set(options.map((o) => str(o, 40)).filter((o): o is string => o !== null && !UNSURE_RE.test(o)))].slice(0, 4);
   return opts.length >= 2 ? { text: t, options: opts } : null;
 }
 
@@ -169,27 +181,39 @@ const RULES: [ReportCategory, RegExp][] = [
   ['slope', /\b(pendenz\w*|salit\w*|discesa|ripid\w*|rampa)/],
 ];
 
+// Le stesse categorie per chi scrive in inglese. Si provano solo se le regole italiane non trovano nulla:
+// la lingua della descrizione non è per forza quella dell'interfaccia.
+const RULES_EN: [ReportCategory, RegExp][] = [
+  ['steps', /\b(steps?|stairs?|staircase|stairway)\b/],
+  ['kerb', /\b(kerbs?|curbs?|high (sidewalk|pavement))\b/],
+  ['crossing', /\b(crossings?|crosswalks?|zebra|traffic lights?|intersections?|junctions?)\b/],
+  ['obstructed_sidewalk', /\b(obstruct\w*|blocked|blocking|parked|cars?|vans?|scooters?|mopeds?|roadworks?|construction|barriers?|bins?|dumpsters?|tables?|cluttered|occupied)\b/],
+  ['uneven_surface', /\b(potholes?|holes?|uneven|broken|cracks?|cracked|cobbles?|cobblestones?|gravel|roots?|bumpy|damaged|unpaved)\b/],
+  ['slope', /\b(slopes?|steep|incline|uphill|downhill|ramps?)\b/],
+];
+
 // Frasi che dicono chiaramente che non si passa. In assenza di queste il fallback non decide (null).
-const BLOCKING_RE = /non (riesco|riusciamo|si riesce|posso|si può|puoi)( a)? (passare|entrare|attraversare)|non si passa|impossibile (passare|entrare)|blocca(no|to|ta)? (completamente|tutto|del tutto|l'intero)|impraticabile/;
+const BLOCKING_RE = /non (riesco|riusciamo|si riesce|posso|si può|puoi)( a)? (passare|entrare|attraversare)|non si passa|impossibile (passare|entrare)|blocca(no|to|ta)? (completamente|tutto|del tutto|l'intero)|impraticabile|(can'?t|cannot|can not|couldn'?t|unable to) (get|pass|go|enter|cross)|impossible to (get|pass|go|enter|cross)|no way (through|past|around)|(completely|totally|fully|entirely) block|blocks? the (whole|entire)|impassable/;
 
 /** Classificazione deterministica a parole chiave. NON è AI: è marcata engine="fallback". */
 export function fallbackInterpret(description: string, note: string): Interpretation {
   const text = description.toLowerCase();
   let category: ReportCategory = 'other';
   let obstacle: string | null = null;
-  for (const [cat, re] of RULES) {
-    const m = re.exec(text);
-    if (m) { category = cat; obstacle = m[0]; break; }
+  for (const [cat, re] of [...RULES, ...RULES_EN]) {
+    const found = re.exec(text);
+    if (found) { category = cat; obstacle = found[0]; break; }
   }
-  const needsHeight = (category === 'steps' || category === 'kerb') && !/\d+\s*(cm|centimetri|m\b|metri)/.test(text);
-  const needsDuration = !/(temporane|permanent|sempre|da (giorni|mesi|anni)|oggi|cantiere)/.test(text);
+  const msg = m();
+  const needsHeight = (category === 'steps' || category === 'kerb') && !/\d+\s*(cm|centimetri|centimet(er|re)s?|m\b|metri|met(er|re)s?|inch(es)?)/.test(text);
+  const needsDuration = !/(temporane|permanent|sempre|da (giorni|mesi|anni)|oggi|cantiere|temporar|always|for (days|weeks|months|years)|today|roadworks?|construction)/.test(text);
   const missing: string[] = [];
-  if (needsHeight) missing.push("Altezza dell'ostacolo");
-  if (needsDuration) missing.push("Se l'ostacolo è temporaneo o permanente");
-  if (!/(alternativ|aggir|altro lato|dall'altra parte)/.test(text)) missing.push('Se esiste un passaggio alternativo vicino');
+  if (needsHeight) missing.push(msg.missingHeight);
+  if (needsDuration) missing.push(msg.missingDuration);
+  if (!/(alternativ|aggir|altro lato|dall'altra parte|way around|go around|other side|detour)/.test(text)) missing.push(msg.missingAlternative);
   const question: FollowUpQuestion | null = needsHeight
-    ? { text: "Quanto è alto, più o meno?", options: ['Meno di 3 cm', 'Tra 3 e 10 cm', 'Più di 10 cm'] }
-    : needsDuration ? { text: "C'è sempre o solo per un periodo?", options: ['Solo per un periodo', "C'è sempre"] } : null;
+    ? { text: msg.askHeight.text, options: [...msg.askHeight.options] }
+    : needsDuration ? { text: msg.askDuration.text, options: [...msg.askDuration.options] } : null;
   const clean = description.trim().replace(/\s+/g, ' ');
   return {
     category, obstacle,

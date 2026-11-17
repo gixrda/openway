@@ -6,7 +6,9 @@ import { PISA_BOUNDS, type LatLngTuple, type OsmFeature, type Report, type Route
 import type { RouteAlert } from '../lib/alerts.ts';
 import { iconSvg, type IconName } from '../lib/icons.ts';
 import { LivingLine } from './LivingLine.tsx';
-import { CATEGORY_ICON, CATEGORY_LABEL, STATUS_LABEL } from '../lib/labels.ts';
+import { osmLabel, useT } from '../i18n/index.ts';
+import { CATEGORY_ICON } from '../lib/labels.ts';
+import { useCopy } from './copy.ts';
 
 export const PISA_CENTER: LatLngTuple = [43.7175, 10.4005];
 
@@ -77,6 +79,8 @@ interface Props {
 
 export function LandingMap({ mapRef, label, className, features, reports, route, alerts, destination, zoom = 16, living }: Props) {
   const line = useRef<L.Polyline>(null);
+  const s = useT();
+  const copy = useCopy();
   useRouteDraw(line, route);
   const [ps, pw, pn, pe] = PISA_BOUNDS;
   const known = features.filter((f) => f.certainty === 'known_obstacle' && f.scope === 'path');
@@ -104,11 +108,11 @@ export function LandingMap({ mapRef, label, className, features, reports, route,
       {known.map((f) => f.geometry.type === 'line' ? (
         <Polyline key={f.id} positions={f.geometry.coords} interactive={false} pathOptions={{ color: '#B54800', weight: 5, opacity: 0.9 }} />
       ) : (
-        <Marker key={f.id} position={f.geometry.coords} icon={obstacleIcon(f)} keyboard={false} title={`Ostacolo noto: ${f.label}`} />
+        <Marker key={f.id} position={f.geometry.coords} icon={obstacleIcon(f)} keyboard={false} title={copy.routeCard.knownObstacle(osmLabel(f))} />
       ))}
       {reports.filter((r) => r.status !== 'resolved').map((r) => (
         <Marker key={r.id} position={[r.lat, r.lng]} icon={reportIcon(r)} keyboard={false} zIndexOffset={500}
-          title={`${CATEGORY_LABEL[r.category]}${r.blocking ? ', non si passa' : ''} (${STATUS_LABEL[r.status].toLowerCase()})`} />
+          title={`${s.labels.category[r.category]}${r.blocking ? s.map.notPassable : ''} (${s.labels.status[r.status].toLowerCase()})`} />
       ))}
       {route && (
         <>
@@ -132,8 +136,8 @@ export function LandingMap({ mapRef, label, className, features, reports, route,
       ))}
       {ends && !living && (
         <>
-          <Marker position={ends[0]} icon={endpointIcon('A')} keyboard={false} zIndexOffset={1000} title="Partenza" />
-          <Marker position={ends[1]} icon={endpointIcon('B')} keyboard={false} zIndexOffset={1000} title="Arrivo" />
+          <Marker position={ends[0]} icon={endpointIcon('A')} keyboard={false} zIndexOffset={1000} title={s.route.from} />
+          <Marker position={ends[1]} icon={endpointIcon('B')} keyboard={false} zIndexOffset={1000} title={s.route.to} />
         </>
       )}
       {destination && (

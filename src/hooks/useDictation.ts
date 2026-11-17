@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Lang } from '../../shared/lang.ts';
+import { getLang, t } from '../i18n/index.ts';
 import { getVoiceStatus, transcribeAudio } from '../lib/voiceApi.ts';
 
 type Phase = 'idle' | 'requesting' | 'recording' | 'stopping' | 'ready' | 'transcribing';
 type Configuration = 'checking' | 'ready' | 'missing' | 'failed';
 interface Capture {
   source: string | undefined;
-  language: 'it' | 'auto';
+  language: Lang | 'auto';
   stream?: MediaStream;
   recorder?: MediaRecorder;
   chunks: Blob[];
@@ -30,10 +32,13 @@ function releaseMicrophone(capture: Capture) {
   capture.stream = undefined;
 }
 
-/** Local bounded recording followed by an explicit ElevenLabs transcription request. */
-export function useDictation({ onTranscript, value, disabled = false, maxLength = 1000, language = 'it', onRecordingStart }: {
+/**
+ * Local bounded recording followed by an explicit ElevenLabs transcription request.
+ * Unless told otherwise, the expected spoken language is the interface language.
+ */
+export function useDictation({ onTranscript, value, disabled = false, maxLength = 1000, language = getLang(), onRecordingStart }: {
   onTranscript: (text: string) => void; value?: string; disabled?: boolean; maxLength?: number;
-  language?: 'it' | 'auto'; onRecordingStart?: () => void;
+  language?: Lang | 'auto'; onRecordingStart?: () => void;
 }) {
   const [supported, setSupported] = useState(false);
   const [configuration, setConfiguration] = useState<Configuration>('checking');
@@ -86,7 +91,7 @@ export function useDictation({ onTranscript, value, disabled = false, maxLength 
     if (!isCurrent(current) || current.controller) return;
     const audio = current.blob;
     if (!audio?.size || audio.size > MAX_AUDIO_BYTES) {
-      cancel(); setError('Audio vuoto o troppo grande. Registra di nuovo, per un massimo di 30 secondi.'); return;
+      cancel(); setError(t().dictation.emptyOrLarge); return;
     }
     current.controller = new AbortController();
     setPhase('transcribing');
@@ -94,17 +99,17 @@ export function useDictation({ onTranscript, value, disabled = false, maxLength 
       const text = (await transcribeAudio(audio, current.controller.signal, current.language)).trim();
       if (!isCurrent(current)) return;
       cancel();
-      if (!text) { setError('Non sono state rilevate parole. Riprova o scrivi il testo.'); return; }
+      if (!text) { setError(t().dictation.noWords); return; }
       const remaining = Math.max(0, latest.current.maxLength);
       if (text.length > remaining) {
-        setError(`La trascrizione contiene ${text.length} caratteri, ma in questo campo ne restano ${remaining}. Il testo esistente non è stato modificato. Accorcia il testo manualmente oppure registra un messaggio più breve.`);
+        setError(t().dictation.tooLong(text.length, remaining));
         return;
       }
       latest.current.onTranscript(text);
     } catch (reason) {
       if (!isCurrent(current)) return;
       cancel();
-      setError(reason instanceof Error ? reason.message : 'Trascrizione ElevenLabs non disponibile. Riprova o scrivi il testo.');
+      setError(reason instanceof Error ? reason.message : t().dictation.unavailable);
     }
   }
 
@@ -115,7 +120,7 @@ export function useDictation({ onTranscript, value, disabled = false, maxLength 
     current.timer = undefined;
     setPhase('stopping');
     try { current.recorder.stop(); } catch {
-      cancel(); setError('Impossibile completare la registrazione. Riprova o scrivi il testo.');
+      cancel(); setError(t().dictation.cannotComplete);
     }
   }
 
@@ -138,20 +143,20 @@ export function useDictation({ onTranscript, value, disabled = false, maxLength 
         if (!isCurrent(current) || !data.size) return;
         current.bytes += data.size;
         if (current.bytes > MAX_AUDIO_BYTES) {
-          cancel(); setError('Registrazione troppo grande (massimo 2 MB). Riprova con un messaggio più breve.'); return;
+          cancel(); setError(t().dictation.tooLarge); return;
         }
         current.chunks.push(data);
       };
       recorder.onerror = () => {
         if (!isCurrent(current)) return;
-        cancel(); setError('Registrazione interrotta dal browser. Riprova o scrivi il testo.');
+        cancel(); setError(t().dictation.interrupted);
       };
       recorder.onstop = () => {
         releaseMicrophone(current);
         if (!isCurrent(current)) return;
         current.blob = new Blob(current.chunks, { type: recorder.mimeType || current.chunks[0]?.type || 'audio/webm' });
         current.chunks = [];
-        if (!current.blob.size) { cancel(); setError('Audio vuoto. Riprova o scrivi il testo.'); return; }
+        if (!current.blob.size) { cancel(); setError(t().dictation.empty); return; }
         setPhase('ready');
         // The 30-second cutoff never uploads audio. Only the explicit transcription button does.
         if (current.uploadOnStop) void upload(current);
@@ -163,8 +168,8 @@ export function useDictation({ onTranscript, value, disabled = false, maxLength 
       if (!isCurrent(current)) return;
       cancel();
       setError(reason && typeof reason === 'object' && 'name' in reason && reason.name === 'NotAllowedError'
-        ? 'Microfono non autorizzato. Abilitalo nelle impostazioni del browser oppure scrivi il testo.'
-        : 'Microfono non disponibile. Puoi scrivere il testo manualmente.');
+        ? t().dictation.micDenied
+        : t().dictation.micUnavailable);
     }
   }
 

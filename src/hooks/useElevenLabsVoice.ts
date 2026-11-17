@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { t } from '../i18n/index.ts';
 import { getVoiceStatus, requestVoiceAudio } from '../lib/voiceApi.ts';
 
 type AudioWindow = Window & { webkitAudioContext?: typeof AudioContext };
@@ -44,9 +45,9 @@ export function useElevenLabsVoice() {
       if (!current) return;
       configuredRef.current = status.configured;
       setConfigured(status.configured);
-      setError(status.configured ? null : 'ElevenLabs non configurato. Puoi leggere le indicazioni sullo schermo.');
+      setError(status.configured ? null : t().voice.notConfigured);
     }).catch((cause: unknown) => {
-      if (current) setError(cause instanceof Error ? cause.message : 'Stato ElevenLabs non disponibile.');
+      if (current) setError(cause instanceof Error ? cause.message : t().voice.statusUnavailable);
     }).finally(() => { if (current) setChecking(false); });
     return () => {
       current = false;
@@ -62,17 +63,17 @@ export function useElevenLabsVoice() {
 
   const unlock = useCallback(async () => {
     const Constructor = audioConstructor();
-    if (!Constructor || !configuredRef.current) throw new Error('Voce ElevenLabs non disponibile. Puoi leggere le indicazioni sullo schermo.');
+    if (!Constructor || !configuredRef.current) throw new Error(t().voice.voiceUnavailable);
     if (!context.current || context.current.state === 'closed') context.current = new Constructor();
     if (context.current.state !== 'running') await context.current.resume();
-    if (context.current.state !== 'running') throw new Error('Audio bloccato dal browser. Premi Prova voce e controlla il volume.');
+    if (context.current.state !== 'running') throw new Error(t().voice.blocked);
     return context.current;
   }, []);
 
   const activate = useCallback(async () => {
     setError(null);
     try { await unlock(); return true; } catch (cause) {
-      if (mounted.current) setError(cause instanceof Error ? cause.message : 'Riproduzione audio non disponibile.');
+      if (mounted.current) setError(cause instanceof Error ? cause.message : t().voice.playbackUnavailable);
       return false;
     }
   }, [unlock]);
@@ -115,7 +116,7 @@ export function useElevenLabsVoice() {
         playback.start();
         setPlaying(true);
       } catch (cause) {
-        if (current()) setError(cause instanceof Error ? cause.message : 'Audio ElevenLabs non disponibile. Leggi le indicazioni sullo schermo.');
+        if (current()) setError(cause instanceof Error ? cause.message : t().voice.audioUnavailable);
       } finally {
         if (current()) { request.current = null; setLoading(false); }
       }

@@ -1,7 +1,7 @@
 import { MotionConfig, motion, useReducedMotion, type Variants } from 'motion/react';
 import type { ReactNode } from 'react';
 import { Icon } from '../components/Icon.tsx';
-import { copy } from './copy.ts';
+import { useCopy } from './copy.ts';
 
 // Piccole interfacce costruite con lo stesso vocabolario dell'app (marker, verdetto, stati, dettatura).
 // Sono illustrazioni: testi e stati sono quelli reali dell'app, l'esempio di percorso è via Roma.
@@ -12,7 +12,6 @@ const item: Variants = {
   shown: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { type: 'spring', stiffness: 260, damping: 24 } },
 };
 const view = { once: true, amount: 0.25 } as const;
-const ui = copy.features.ui;
 
 // Con "riduci movimento" le interfacce partono già complete: nessun contenuto deve dipendere da un'animazione.
 function useReveal() {
@@ -21,6 +20,7 @@ function useReveal() {
 }
 
 function ExploreUi() {
+  const ui = useCopy().features.ui;
   const marks: Record<string, ReactNode> = {
     known: <span className="mk mk--known mk--inline" />,
     report: <span className="pin-mini">?</span>,
@@ -41,6 +41,7 @@ function ExploreUi() {
 }
 
 function ReportUi() {
+  const ui = useCopy().features.ui;
   return (
     <motion.div className="ow-mini-card" variants={list} {...useReveal()}>
       <motion.p variants={item} className="ow-mini-quote">{ui.report.text}</motion.p>
@@ -56,6 +57,7 @@ function ReportUi() {
 }
 
 function RouteUi() {
+  const ui = useCopy().features.ui;
   return (
     <motion.div className="ow-mini-card" variants={list} {...useReveal()}>
       <motion.p variants={item} className="ow-mini-verdict"><Icon name="warning" size={18} />{ui.route.verdict}</motion.p>
@@ -70,6 +72,7 @@ function RouteUi() {
 }
 
 function VoiceUi() {
+  const ui = useCopy().features.ui;
   return (
     <motion.div className="ow-mini-voice" variants={list} {...useReveal()}>
       <motion.span variants={item} className="ow-mini-mic">
@@ -84,7 +87,7 @@ function VoiceUi() {
 const UIS: Record<string, () => ReactNode> = { esplora: ExploreUi, segnala: ReportUi, naviga: RouteUi, voce: VoiceUi };
 
 export function FeatureBento() {
-  const f = copy.features;
+  const f = useCopy().features;
   return (
     <section id="come-funziona" className="ow-section ow-features" aria-labelledby="ow-features-title">
       <MotionConfig reducedMotion="user">

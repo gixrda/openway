@@ -68,24 +68,28 @@ shared/            tipi e regole condivisi tra browser e server
   rules.ts         soglie in metri e regola "questa segnalazione va evitata?"
   geo.ts           proiezione locale, distanza punto-linea
   navigation.ts    istruzioni di svolta posizionate sulla geometria
+  lang.ts          lingue dell'interfaccia (it, en) e lettura di Accept-Language
+  osmClassify.ts   tag OSM → tipo, certezza ed etichetta nella lingua richiesta (usato da server e interfaccia)
 server/
   api.ts           handler HTTP /api/* (usato da Vite in dev e da index.ts in produzione)
-  routing.ts       Valhalla (3 alternative, istruzioni it-IT, esclusioni), ORS, OSRM, aggancio alla rete (/locate)
+  routing.ts       Valhalla (3 alternative, istruzioni nella lingua della richiesta, esclusioni), ORS, OSRM, aggancio alla rete (/locate)
   safety.ts        classificazione dei tratti (pedonale, marciapiede, carreggiata, scale) e scelta dell'alternativa
   reports.ts       bozze, creazione, foto, stati; persistenza su file con scritture atomiche
   ai.ts            prompt, chiamata a Gemma (Google o Ollama), validazione del JSON, fallback a regole
   voice.ts         trascrizione e sintesi ElevenLabs con limiti e controlli sul file audio
-  osm.ts           query Overpass e classificazione dei tag OSM in "ostacolo noto / possibile / utile / incompleto"
+  osm.ts           query Overpass e normalizzazione dello snapshot (la classificazione dei tag è in shared/osmClassify.ts)
+  messages.ts      testi del server in italiano e inglese, nella lingua della richiesta in corso (AsyncLocalStorage)
   data/            snapshot OSM (committato), segnalazioni e foto (ignorati da git)
 src/
   App.tsx          stato dell'app, calcolo e ricalcolo, orchestrazione dei pannelli
   components/      MapView, RoutePanel, ReportPanel, DetailPanel, MapControls, NavigationPanel, DictationButton
   lib/             analysis (ostacoli lungo il percorso), compare, reroute, alerts, speech, navigation, labels, icons
   hooks/           useDictation, useElevenLabsVoice, useVoiceNavigation
+  i18n/            lingua dell'interfaccia: it.ts (riferimento), en.ts, stato e cambio lingua in index.ts
   styles.css       design system dell'app (variabili CSS, vetro, tema chiaro/scuro)
   markers.css      marker della mappa, condivisi tra app e landing
-  landing/         landing page (/landing/, landing/index.html): hero con mappa, demo dei percorsi, testi in copy.ts
-tests/             Vitest (136 test), senza rete: i servizi esterni sono simulati
+  landing/         landing page (/landing/, landing/index.html): hero con mappa, demo dei percorsi, testi in copy.it.ts e copy.en.ts
+tests/             Vitest (166 test), senza rete: i servizi esterni sono simulati
 scripts/           fetch-osm (snapshot), check-gemma (prova dal vivo dell'AI)
 cloud/             edizione pubblicata (Cloudflare Workers + D1): app separata, vedi cloud/README.md
 ```

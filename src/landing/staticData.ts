@@ -1,18 +1,18 @@
 // Versione statica della landing (GitHub Pages): niente server, quindi niente /api.
 // Dati OSM e percorsi registrati vengono serviti come file; la ricerca va direttamente a Nominatim.
 import { PISA_BOUNDS, type GeocodeResult, type OsmDataset, type RouteResult } from '../../shared/types.ts';
+import { getLang, t } from '../i18n/index.ts';
+import { getCopy } from './copy.ts';
+import { BASE, STATIC } from './env.ts';
 
-const env = (import.meta as { env?: Record<string, string | undefined> }).env;
-/** true nel build per GitHub Pages (vite build --mode static) */
-export const STATIC = env?.VITE_STATIC === '1';
-export const BASE = env?.BASE_URL ?? '/';
+export { BASE, STATIC };
 
 export interface RecordedRoutes { recordedAt: string; routes: Record<string, RouteResult> }
 
 let recorded: Promise<RecordedRoutes> | null = null;
 async function json<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`).catch(() => { throw new Error('Sei offline o la connessione è lenta. Controlla la rete e riprova.'); });
-  if (!res.ok) throw new Error('Dati non disponibili in questo momento. Ricarica la pagina tra poco.');
+  const res = await fetch(`${BASE}${path}`).catch(() => { throw new Error(t().api.offline); });
+  if (!res.ok) throw new Error(getCopy().routeCard.dataUnavailable);
   return res.json() as Promise<T>;
 }
 
@@ -23,8 +23,10 @@ export const staticRoutes = () => (recorded ??= json<RecordedRoutes>('data/route
 const cache = new Map<string, GeocodeResult[]>();
 let last = 0;
 export async function geocodeDirect(q: string): Promise<GeocodeResult[]> {
-  const key = q.trim().toLowerCase();
-  if (key.length < 3) throw new Error('Scrivi almeno 3 lettere per cercare.');
+  // I nomi dei luoghi arrivano nella lingua dell'interfaccia: la cache è separata per lingua.
+  const lang = getLang();
+  const key = `${lang}:${q.trim().toLowerCase()}`;
+  if (q.trim().length < 3) throw new Error(getCopy().hero.tooShort);
   const hit = cache.get(key);
   if (hit) return hit;
   const wait = last + 1000 - Date.now();
@@ -32,10 +34,10 @@ export async function geocodeDirect(q: string): Promise<GeocodeResult[]> {
   last = Date.now();
   const [s, w, n, e] = PISA_BOUNDS;
   const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-    q: q.trim().slice(0, 200), format: 'jsonv2', limit: '5', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': 'it',
+    q: q.trim().slice(0, 200), format: 'jsonv2', limit: '5', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': lang,
   })}`;
   const res = await fetch(url, { referrerPolicy: 'strict-origin-when-cross-origin' }).catch(() => null);
-  if (!res?.ok) throw new Error('La ricerca degli indirizzi non funziona in questo momento. Riprova tra poco.');
+  if (!res?.ok) throw new Error(getCopy().routeCard.searchDown);
   const data = await res.json() as { display_name?: unknown; lat?: unknown; lon?: unknown }[];
   // I dati arrivano da un servizio esterno: si tengono solo campi del tipo atteso, mai HTML.
   const results = (Array.isArray(data) ? data : [])

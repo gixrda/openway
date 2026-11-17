@@ -4,18 +4,19 @@ import type { OsmFeature, Report } from '../../shared/types.ts';
 import { Icon } from '../components/Icon.tsx';
 import { formatDistance, formatDuration } from '../lib/analysis.ts';
 import { verdictOf } from '../lib/verdict.ts';
-import { APP_URL, copy, type Scenario } from './copy.ts';
+import { APP_URL, SCENARIOS, useCopy, type Scenario } from './copy.ts';
 import { LandingMap } from './LandingMap.tsx';
 import { STATIC } from './staticData.ts';
 import { PinnedTitle } from './PinnedTitle.tsx';
 import { useAlerts, useRoute } from './useLanding.ts';
 
-const t = copy.demo;
 const MAX_ALERTS = 5;
 const appLink = (s: Scenario) => `${APP_URL}?from=${s.from.join(',')}&to=${s.to.join(',')}`;
 
 export function DemoSection({ features, reports }: { features: OsmFeature[]; reports: Report[] }) {
-  const [scenario, setScenario] = useState<Scenario>(t.scenarios[0]);
+  const copy = useCopy();
+  const t = copy.demo;
+  const [scenario, setScenario] = useState<Scenario>(SCENARIOS[0]);
   const [attempt, setAttempt] = useState(0);
   const [map, setMap] = useState<L.Map | null>(null);
   const state = useRoute(scenario, attempt);
@@ -84,7 +85,7 @@ export function DemoSection({ features, reports }: { features: OsmFeature[]; rep
                   {alerts.length > MAX_ALERTS && <p className="ow-alerts__more">{t.more(alerts.length - MAX_ALERTS)}</p>}
                 </>
               )}
-              {state.status === 'ready' && state.recordedAt && <p className="ow-demo__none">{copy.routeCard.recorded(new Date(state.recordedAt).toLocaleDateString('it-IT'))}</p>}
+              {state.status === 'ready' && state.recordedAt && <p className="ow-demo__none">{copy.routeCard.recorded(new Date(state.recordedAt).toLocaleDateString(copy.locale))}</p>}
               {!STATIC && <a className="ow-btn ow-btn--primary ow-demo__open" href={appLink(scenario)}>{t.open}</a>}
             </div>
           </div>

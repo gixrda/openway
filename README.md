@@ -102,6 +102,13 @@ Apri una segnalazione → *Azioni moderatore* → inserisci `ADMIN_TOKEN` → *C
 ### Legenda della mappa
 Il bottone con i livelli (in alto a destra) accende e spegne ostacoli noti, segnalazioni, possibili difficoltà, elementi utili, attraversamenti senza informazioni e accessibilità dei negozi. Da lontano si vedono solo ostacoli noti e segnalazioni; avvicinando compare il resto. Il riquadro tratteggiato è la zona coperta dai dati (zona universitaria).
 
+### Lingue
+L'app e la landing sono in **italiano e inglese**. La lingua segue quella del browser (italiano se è tra le lingue preferite, altrimenti inglese) e si cambia con il bottone **EN / IT**: nella capsula dei controlli sulla mappa, nell'intestazione della landing (su telefono dentro il menu). La scelta resta salvata; un link può fissarla con `?lang=en` o `?lang=it`.
+
+Cambiano lingua anche i testi che arrivano dal server: messaggi di errore, motivi della scelta del percorso, indicazioni di svolta di Valhalla, domanda dell'assistente, voce ElevenLabs. Le segnalazioni **non vengono tradotte**: restano nella lingua di chi le ha scritte, e l'app lo dice quando è diversa da quella dell'interfaccia.
+
+Per aggiungere una lingua: una voce in `shared/lang.ts`, poi un dizionario con le stesse chiavi dell'italiano in `src/i18n/`, `src/landing/copy.*.ts`, `server/messages.ts` e `shared/osmClassify.ts`. Il compilatore segnala le chiavi mancanti; `tests/i18n.test.ts` controlla che non restino testi non tradotti e che la regola "mai accessibile, mai sicuro" valga in ogni lingua.
+
 ---
 
 ## Percorsi per la demo

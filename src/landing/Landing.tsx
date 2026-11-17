@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon.tsx';
 import type { IconName } from '../lib/icons.ts';
-import { APP_URL, CLOUD_URL, copy, REPO_URL } from './copy.ts';
+import { setLang, t, useLang } from '../i18n/index.ts';
+import { APP_URL, CLOUD_URL, REPO_URL, useCopy } from './copy.ts';
 import { DemoSection } from './DemoSection.tsx';
 import { Hero } from './Hero.tsx';
 import { Benefits, Project } from './BenefitsProject.tsx';
@@ -13,8 +14,9 @@ import { setupMotion } from './motion.ts';
 import { useMapData } from './useLanding.ts';
 
 function Logo() {
+  const copy = useCopy();
   return (
-    <a className="ow-logo" href="#top" aria-label="OpenWay, inizio pagina">
+    <a className="ow-logo" href="#top" aria-label={copy.nav.logo}>
       <img src={`${BASE}logo.png`} alt="" width="32" height="32" />
       <span>OpenWay</span>
     </a>
@@ -22,6 +24,9 @@ function Logo() {
 }
 
 function Header() {
+  const copy = useCopy();
+  const lang = useLang();
+  const s = t();
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -51,8 +56,19 @@ function Header() {
             {copy.nav.links.map((l) => (
               <li key={l.href}><a href={l.href} onClick={() => setOpen(false)}>{l.label}</a></li>
             ))}
+            {/* Su telefono la barra non ha spazio per un altro bottone: il cambio lingua sta nel menu. */}
+            <li className="ow-nav__lang">
+              <button type="button" lang={s.language.switchCode.toLowerCase()} onClick={() => { setLang(lang === 'it' ? 'en' : 'it'); setOpen(false); }}>
+                {s.language.switchTo}
+              </button>
+            </li>
           </ul>
         </nav>
+        {/* Il bottone mostra la lingua a cui si passa, scritta in quella lingua. */}
+        <button type="button" className="ow-header__lang" onClick={() => setLang(lang === 'it' ? 'en' : 'it')}
+          aria-label={s.language.switchTo} title={s.language.switchTo} lang={s.language.switchCode.toLowerCase()}>
+          {s.language.switchCode}
+        </button>
         <a className="ow-btn ow-btn--primary ow-btn--sm ow-header__cta" href={APP_URL}>{copy.nav.cta}</a>
         <button type="button" className="ow-header__menu" aria-expanded={open} aria-controls="ow-nav-list" onClick={() => setOpen((v) => !v)}>
           {open ? <Icon name="close" size={18} /> : <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4.5h12M2 8h12M2 11.5h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>}
@@ -64,7 +80,7 @@ function Header() {
 }
 
 function Statements() {
-  const s = copy.statements;
+  const s = useCopy().statements;
   return (
     <section className="ow-section ow-statements" aria-labelledby="ow-statements-title">
       <h2 id="ow-statements-title" className="ow-sr">{s.title}</h2>
@@ -84,7 +100,7 @@ function Statements() {
 }
 
 function Faq() {
-  const f = copy.faq;
+  const f = useCopy().faq;
   return (
     <section id="domande" className="ow-section ow-faq" aria-labelledby="ow-faq-title">
       <div className="ow-container ow-faq__inner">
@@ -103,7 +119,7 @@ function Faq() {
 }
 
 function Problem() {
-  const p = copy.problem;
+  const p = useCopy().problem;
   return (
     <section id="problema" className="ow-section ow-problem" aria-labelledby="ow-problem-title">
       <div className="ow-container ow-problem__grid">
@@ -128,7 +144,7 @@ function Problem() {
 }
 
 function Closing() {
-  const c = copy.closing;
+  const c = useCopy().closing;
   return (
     <section className="ow-closing" aria-labelledby="ow-closing-title">
       <div className="ow-container ow-closing__inner" data-statement>
@@ -148,6 +164,7 @@ function Closing() {
 }
 
 function Footer() {
+  const copy = useCopy();
   const f = copy.footer;
   return (
     <footer className="ow-footer">
@@ -185,13 +202,18 @@ function Footer() {
 }
 
 export function Landing() {
+  const copy = useCopy();
   const { features, reports } = useMapData();
+  // La descrizione della pagina segue la lingua scelta (i meta Open Graph restano quelli del file HTML).
+  useEffect(() => {
+    document.querySelector('meta[name="description"]')?.setAttribute('content', copy.meta.description);
+  }, [copy]);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => (root.current ? setupMotion(root.current) : undefined), []);
 
   return (
     <div ref={root} id="top">
-      <a className="ow-skip" href="#contenuto">Vai al contenuto</a>
+      <a className="ow-skip" href="#contenuto">{copy.nav.skip}</a>
       <Header />
       <RouteRail />
       <main id="contenuto">

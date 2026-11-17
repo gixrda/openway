@@ -1,9 +1,9 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
-import { NOT_SURE, REPORT_CATEGORIES, type Report, type ReportCategory, type ReportDraft, type ServerStatus } from '../../shared/types.ts';
+import { notSure, REPORT_CATEGORIES, type Report, type ReportCategory, type ReportDraft, type ServerStatus } from '../../shared/types.ts';
 import { api } from '../api.ts';
-import { CATEGORY_LABEL } from '../lib/labels.ts';
+import { getLang, useT } from '../i18n/index.ts';
 import type { Recalc } from '../lib/reroute.ts';
-import { RECALC_TEXT } from './RoutePanel.tsx';
+import { recalcText } from './RoutePanel.tsx';
 import { toJpegDataUrl } from '../lib/photo.ts';
 import { DictationButton } from './DictationButton.tsx';
 import { Icon } from './Icon.tsx';
@@ -28,13 +28,15 @@ interface Props {
 }
 
 const PASSABLE = [
-  { value: true, label: 'No, blocca il passaggio' },
-  { value: false, label: 'Sì, con difficoltà' },
-  { value: null, label: 'Non lo so' },
+  { value: true, key: 'blocks' },
+  { value: false, key: 'hard' },
+  { value: null, key: 'unknown' },
 ] as const;
 
 /** Segnalazione in due tempi con un solo bottone che avanza: "Continua" fa leggere la descrizione, "Invia" la salva. */
 export function ReportPanel(p: Props) {
+  const s = useT();
+  const rp = s.report;
   const [description, setDescriptionRaw] = useState('');
   const [photo, setPhotoRaw] = useState<string | null>(null);
   const [category, setCategory] = useState<ReportCategory | ''>('');
@@ -59,14 +61,14 @@ export function ReportPanel(p: Props) {
     try {
       setPhoto(await toJpegDataUrl(file));
     } catch {
-      setError('Non riusciamo ad aprire questa foto. Prova con un\'altra.');
+      setError(rp.photoError);
     }
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
-    if (tooShort) { setError('Scrivi almeno 10 caratteri per descrivere il problema.'); return; }
+    if (tooShort) { setError(rp.tooShortError); return; }
     setError(null);
     if (!draft) {
       setBusy('analyze');
@@ -79,7 +81,7 @@ export function ReportPanel(p: Props) {
       } finally { setBusy(null); }
       return;
     }
-    if (!p.point) { setError('Indica prima sulla mappa dove si trova l\'ostacolo.'); return; }
+    if (!p.point) { setError(rp.needPoint); return; }
     setBusy('send');
     try {
       const r = await api.createReport({
@@ -98,107 +100,109 @@ export function ReportPanel(p: Props) {
 
   if (created) {
     // Con un percorso attivo l'esito arriva dal ricalcolo; senza, dipende solo dalle regole sull'ostacolo.
-    const outcome = p.hasRoute && p.recalc ? RECALC_TEXT[p.recalc.kind] : null;
+    const outcome = p.hasRoute && p.recalc ? recalcText(s, p.recalc.kind) : null;
     const text = outcome ? `${outcome.title}. ${outcome.text}`
-      : created.impact === 'avoid' ? 'Da ora i percorsi calcolati lo eviteranno.'
-      : created.impact === 'unlocated' ? RECALC_TEXT.unlocated.text
-      : `È sulla mappa con il simbolo «${CATEGORY_LABEL[created.category]}». Non blocca il passaggio.`;
+      : created.impact === 'avoid' ? rp.avoidFromNow
+      : created.impact === 'unlocated' ? s.route.recalc.unlocated.text
+      : rp.onMapSymbol(s.labels.category[created.category]);
     return (
       <section className="panel" aria-labelledby="done-title">
         <div className="verdict verdict--calm" role="status" aria-live="polite">
           <Icon name="check" size={22} />
           <div>
-            <h2 id="done-title" className="verdict__title">Grazie, segnalazione inviata</h2>
-            <p className="verdict__text">{text} Resta da controllare sul posto.</p>
+            <h2 id="done-title" className="verdict__title">{rp.thanks}</h2>
+            <p className="verdict__text">{text} {rp.stillToCheck}</p>
           </div>
         </div>
         <div className="row">
-          {p.hasRoute && <button type="button" className="btn btn--primary" onClick={p.onShowRoute}>Vedi il percorso</button>}
-          <button type="button" className={`btn ${p.hasRoute ? 'btn--ghost' : 'btn--primary'}`} onClick={() => p.onShow(created)}>Vedi sulla mappa</button>
-          <button type="button" className="btn btn--ghost" onClick={() => setCreated(null)}>Nuova segnalazione</button>
+          {p.hasRoute && <button type="button" className="btn btn--primary" onClick={p.onShowRoute}>{rp.viewRoute}</button>}
+          <button type="button" className={`btn ${p.hasRoute ? 'btn--ghost' : 'btn--primary'}`} onClick={() => p.onShow(created)}>{rp.viewOnMap}</button>
+          <button type="button" className="btn btn--ghost" onClick={() => setCreated(null)}>{rp.newReport}</button>
         </div>
       </section>
     );
   }
 
   const q = draft?.interpretation.question;
-  const cta = busy === 'analyze' ? 'Stiamo leggendo la segnalazione…'
-    : busy === 'send' ? 'Invio…'
-    : draft ? 'Invia segnalazione' : 'Continua';
+  const cta = busy === 'analyze' ? rp.analyzing
+    : busy === 'send' ? rp.sending
+    : draft ? rp.send : rp.next;
+  // "Non so" è quello della lingua in cui la domanda è stata scritta, cioè la lingua della bozza.
+  const unsure = notSure(getLang());
 
   return (
     <section className="panel" aria-labelledby="report-title">
-      <h2 id="report-title" className="panel__title">Segnala un ostacolo</h2>
+      <h2 id="report-title" className="panel__title">{rp.title}</h2>
       <form onSubmit={submit} noValidate className="panel">
         <fieldset className="field">
-          <legend className="field__label">Dove si trova?</legend>
+          <legend className="field__label">{rp.where}</legend>
           {p.point ? (
             <div className="place">
               <Icon name="pin" />
-              <span className="place__text">Punto scelto sulla mappa</span>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => p.setPickMode('report')}>Sposta</button>
+              <span className="place__text">{s.common.mapPoint}</span>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => p.setPickMode('report')}>{rp.move}</button>
             </div>
           ) : (
             <div className="row">
               <button type="button" className={`btn btn--secondary btn--sm${p.pickMode === 'report' ? ' is-active' : ''}`}
                 aria-pressed={p.pickMode === 'report'} onClick={() => p.setPickMode(p.pickMode === 'report' ? null : 'report')}>
-                <Icon name="pin" /> {p.pickMode === 'report' ? 'Tocca il punto sulla mappa…' : 'Scegli sulla mappa'}
+                <Icon name="pin" /> {p.pickMode === 'report' ? rp.tapPoint : s.common.pickOnMap}
               </button>
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => p.onLocate('report')} disabled={p.locating}>
-                <Icon name="locate" /> {p.locating ? 'Cerco dove sei…' : 'La mia posizione'}
+                <Icon name="locate" /> {p.locating ? s.common.locating : s.common.myPosition}
               </button>
             </div>
           )}
         </fieldset>
 
         <div className="field">
-          <label htmlFor="desc" className="field__label">Cosa hai trovato?</label>
+          <label htmlFor="desc" className="field__label">{rp.whatFound}</label>
           <textarea id="desc" rows={3} maxLength={1000} value={description} onChange={(e) => setDescription(e.target.value)}
-            placeholder="Es. C'è un gradino alto davanti all'ingresso e non si passa."
+            placeholder={rp.placeholder}
             aria-invalid={error !== null && tooShort} />
-          <DictationButton label="Detta la descrizione" value={description} maxLength={1000 - description.length}
+          <DictationButton label={rp.dictateDescription} value={description} maxLength={1000 - description.length}
             onTranscript={(text) => setDescription(description.trim() ? `${description.trim()} ${text}` : text)} />
           {photo ? (
             <div className="photo">
-              <img src={photo} alt="Anteprima della foto allegata" />
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPhoto(null)}>Togli la foto</button>
+              <img src={photo} alt={rp.photoAlt} />
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPhoto(null)}>{rp.removePhoto}</button>
             </div>
           ) : (
             <label className="btn btn--ghost btn--sm file">
               <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={pickPhoto} />
-              <Icon name="camera" /> Aggiungi una foto <span className="muted">(facoltativa)</span>
+              <Icon name="camera" /> {rp.addPhoto} <span className="muted">{rp.optional}</span>
             </label>
           )}
         </div>
 
         {draft && (
           <div className="field" aria-live="polite">
-            <h3 className="section-title">Abbiamo capito così</h3>
-            <p className="field__help">Se qualcosa non va, correggi il tipo o modifica la descrizione.</p>
+            <h3 className="section-title">{rp.understood}</h3>
+            <p className="field__help">{rp.understoodHelp}</p>
             <Interpretation
               interpretation={draft.interpretation}
               category={
-                <select aria-label="Tipo di ostacolo" value={category || draft.interpretation.category}
+                <select aria-label={rp.obstacleType} value={category || draft.interpretation.category}
                   onChange={(e) => setCategory(e.target.value as ReportCategory)}>
-                  {REPORT_CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
+                  {REPORT_CATEGORIES.map((c) => <option key={c} value={c}>{s.labels.category[c]}</option>)}
                 </select>
               }
             />
             <fieldset className="question">
-              <legend className="question__text">Si riesce a passare con la sedia a rotelle?</legend>
+              <legend className="question__text">{rp.passableQuestion}</legend>
               <div className="row">
                 {PASSABLE.map((o) => (
-                  <button key={o.label} type="button" className={`btn btn--ghost btn--sm${blocking === o.value ? ' is-active' : ''}`}
-                    aria-pressed={blocking === o.value} onClick={() => setBlocking(o.value)}>{o.label}</button>
+                  <button key={o.key} type="button" className={`btn btn--ghost btn--sm${blocking === o.value ? ' is-active' : ''}`}
+                    aria-pressed={blocking === o.value} onClick={() => setBlocking(o.value)}>{rp.passable[o.key]}</button>
                 ))}
               </div>
-              {blocking === true && <p className="field__help">I percorsi eviteranno questo punto.</p>}
+              {blocking === true && <p className="field__help">{rp.routesWillAvoid}</p>}
             </fieldset>
             {q && (
               <fieldset className="question">
                 <legend className="question__text">{q.text}</legend>
                 <div className="row">
-                  {[...q.options, NOT_SURE].map((o) => (
+                  {[...q.options, unsure].map((o) => (
                     <button key={o} type="button" className={`btn btn--ghost btn--sm${answer === o ? ' is-active' : ''}`}
                       aria-pressed={answer === o} onClick={() => setAnswer(answer === o ? null : o)}>{o}</button>
                   ))}
@@ -213,7 +217,7 @@ export function ReportPanel(p: Props) {
           {cta}
         </button>
         {!busy && (tooShort || (draft && !p.point)) && (
-          <p className="field__help">{tooShort ? 'Scrivi almeno 10 caratteri per continuare.' : 'Indica sulla mappa dove si trova per inviare.'}</p>
+          <p className="field__help">{tooShort ? rp.minChars : rp.needPointHelp}</p>
         )}
       </form>
     </section>

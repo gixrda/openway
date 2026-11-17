@@ -5,14 +5,13 @@ import { api } from '../api.ts';
 import { Icon } from '../components/Icon.tsx';
 import { formatDistance, formatDuration } from '../lib/analysis.ts';
 import { verdictOf } from '../lib/verdict.ts';
-import { APP_URL, copy } from './copy.ts';
+import { APP_URL, SCENARIOS, useCopy } from './copy.ts';
 import { LandingMap } from './LandingMap.tsx';
 import { bestFork } from './livingLine.ts';
 import { geocodeDirect, STATIC } from './staticData.ts';
 import { useAlerts, useRoute } from './useLanding.ts';
 
-const t = copy.hero;
-const HERO_ROUTE = copy.demo.scenarios[0];
+const HERO_ROUTE = SCENARIOS[0];
 const OVERLAY = '(min-width: 1100px)'; // da qui i pannelli stanno sopra la mappa, sotto si impilano
 
 type Search =
@@ -26,6 +25,7 @@ const splitLabel = (label: string) => { const [name, ...rest] = label.split(', '
 const rowLabel = (r: GeocodeResult) => { const { name, area } = splitLabel(r.label); return `${name}|${area}`; };
 
 function SearchBox({ onPick, inputRef, compact }: { onPick: (r: GeocodeResult) => void; inputRef: RefObject<HTMLInputElement | null>; compact: boolean }) {
+  const t = useCopy().hero;
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState<Search>({ status: 'idle' });
   const [picked, setPicked] = useState<GeocodeResult | null>(null);
@@ -112,6 +112,8 @@ function useNarrow(): boolean {
 }
 
 export function Hero({ features, reports }: { features: OsmFeature[]; reports: Report[] }) {
+  const copy = useCopy();
+  const t = copy.hero;
   const [map, setMap] = useState<L.Map | null>(null);
   const [exploring, setExploring] = useState(false);
   const narrow = useNarrow();
@@ -204,7 +206,7 @@ export function Hero({ features, reports }: { features: OsmFeature[]; reports: R
         <LandingMap mapRef={setMap} label={t.mapLabel} features={features} reports={reports} route={route} alerts={alerts} destination={destination}
           living={{ branches, playing, at: fork.at }} />
         <div className="ow-hero__halo" aria-hidden="true" />
-        <div className="ow-controls ow-glass" role="group" aria-label="Controlli della mappa">
+        <div className="ow-controls ow-glass" role="group" aria-label={copy.controls.label}>
           <button type="button" className="ow-controls__btn" onClick={() => { pauseLine(); map?.zoomIn(); }} aria-label={copy.controls.zoomIn} title={copy.controls.zoomIn}>
             <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
           </button>
@@ -284,7 +286,7 @@ export function Hero({ features, reports }: { features: OsmFeature[]; reports: R
             </div>
           )}
           <p className="ow-routecard__note">{route && route.mode !== 'wheelchair' && verdict ? verdict.text : copy.routeCard.note}</p>
-          {state.status === 'ready' && state.recordedAt && <p className="ow-routecard__note">{copy.routeCard.recorded(new Date(state.recordedAt).toLocaleDateString('it-IT'))}</p>}
+          {state.status === 'ready' && state.recordedAt && <p className="ow-routecard__note">{copy.routeCard.recorded(new Date(state.recordedAt).toLocaleDateString(copy.locale))}</p>}
           {route && !reduceMotion && branches.length > 0 && <p className="ow-routecard__note">{copy.routeCard.branchesNote}</p>}
           {route && !reduceMotion && userPaused && !destination && !exploring && (
             <button type="button" className="ow-link ow-routecard__replay" onClick={() => setUserPaused(false)}>

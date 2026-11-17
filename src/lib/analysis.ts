@@ -1,5 +1,6 @@
 import { distToLine, projector, type XY } from '../../shared/geo.ts';
 import { RULES } from '../../shared/rules.ts';
+import { t } from '../i18n/index.ts';
 import { nearM, obstaclePoint } from './reroute.ts';
 import type { LatLngTuple, OsmFeature, Report } from '../../shared/types.ts';
 
@@ -138,7 +139,7 @@ export function routeObstacles(a: RouteAnalysis): RouteObstacle[] {
 }
 
 export function formatDistance(m: number): string {
-  return m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
+  return m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace('.', t().decimal)} km`;
 }
 
 export function formatDuration(s: number): string {

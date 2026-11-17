@@ -1,5 +1,6 @@
 import type { LatLngTuple, RouteResult, RouteSafety, SafetySegment } from '../shared/types.ts';
 import { HttpError, USER_AGENT } from './errors.ts';
+import { m, MESSAGES } from './messages.ts';
 
 /**
  * Verifica dei tratti di un percorso, indipendente dal servizio che l'ha calcolato.
@@ -27,7 +28,8 @@ const NOISE_M = 3;
 // Si accettano fino a 2 m di percorso in più per ogni metro di carreggiata senza marciapiede evitato.
 const DETOUR_PER_CARRIAGEWAY_M = 2;
 
-export const NOT_VERIFIABLE = 'Non è stato possibile trovare un percorso sufficientemente verificabile. Controlla la mappa prima di proseguire.';
+/** Testo italiano (lingua di riferimento); a chi usa l'app arriva quello della lingua della richiesta. */
+export const NOT_VERIFIABLE = MESSAGES.it.notVerifiable;
 
 export function decodePolyline6(str: string): LatLngTuple[] {
   const out: LatLngTuple[] = [];
@@ -107,8 +109,6 @@ export async function assessRoute(coords: LatLngTuple[], wheelchair: boolean): P
   }
 }
 
-const rounded = (m: number) => `${Math.round(m / 10) * 10 || Math.round(m)} m`;
-
 /**
  * Sceglie tra percorsi alternativi quello più verificabile.
  * Scarta i percorsi su strade principali senza marciapiede e, per la sedia a rotelle, quelli con scale.
@@ -126,7 +126,7 @@ export async function chooseSafest(candidates: RouteResult[], wheelchair: boolea
   const rejected = (s: RouteSafety) => s.segments.some((x) => x.kind === 'main_road' || (wheelchair && x.kind === 'steps'));
   const ok = checked.filter((a) => !rejected(a.safety));
   if (!ok.length) {
-    throw new HttpError(422, `${NOT_VERIFIABLE} Tutti i percorsi trovati passano da strade trafficate senza marciapiede${wheelchair ? ' o da scale' : ''}.`);
+    throw new HttpError(422, `${m().notVerifiable} ${m().allRejected(wheelchair)}`);
   }
   const minDist = Math.min(...ok.map((a) => a.route.distanceM));
   const score = (a: (typeof ok)[number]) => a.safety.carriagewayM + (a.route.distanceM - minDist) / DETOUR_PER_CARRIAGEWAY_M;
@@ -136,10 +136,9 @@ export async function chooseSafest(candidates: RouteResult[], wheelchair: boolea
   let choice: string | undefined;
   if (best !== first) {
     const extra = best.route.distanceM - first.route.distanceM;
-    const longer = extra > 10 ? `un percorso più lungo di ${rounded(extra)}` : 'un percorso diverso';
     choice = rejected(first.safety)
-      ? `Abbiamo scelto ${longer} perché il più breve passa ${first.safety.segments.some((s) => s.kind === 'main_road') ? 'in una strada trafficata senza marciapiede' : 'da scale'}.`
-      : `Abbiamo scelto ${longer} per evitare ${rounded(first.safety.carriagewayM - best.safety.carriagewayM)} di strada senza marciapiede.`;
+      ? m().choiceRejected(extra, first.safety.segments.some((s) => s.kind === 'main_road'))
+      : m().choiceAvoids(extra, first.safety.carriagewayM - best.safety.carriagewayM);
   }
   return { ...best.route, safety: { ...best.safety, alternatives: checked.length, ...(choice ? { choice } : {}) } };
 }

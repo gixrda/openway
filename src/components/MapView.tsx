@@ -2,7 +2,8 @@ import L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
 import { CircleMarker, MapContainer, Marker, Polyline, Rectangle, TileLayer, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import { DEMO_BBOX, PISA_BOUNDS, type LatLngTuple, type OsmFeature, type Report, type RouteResult } from '../../shared/types.ts';
-import { CATEGORY_ICON, CATEGORY_LABEL, CERTAINTY_LABEL, STATUS_LABEL } from '../lib/labels.ts';
+import { osmLabel, useLang, useT } from '../i18n/index.ts';
+import { CATEGORY_ICON } from '../lib/labels.ts';
 import type { RouteAlert } from '../lib/alerts.ts';
 import { iconSvg, type IconName } from '../lib/icons.ts';
 
@@ -131,6 +132,10 @@ export function MapView(p: Props) {
   // L'elemento selezionato resta visibile anche se il suo livello è nascosto.
   const [zoom, setZoom] = useState(16);
   const dark = useDarkMode();
+  const lang = useLang();
+  const t = useT();
+  const reportTitle = (r: Report) =>
+    `${t.labels.category[r.category]}${r.blocking ? t.map.notPassable : ''} (${t.labels.status[r.status].toLowerCase()})`;
   const c = dark ? PALETTE.dark : PALETTE.light;
   const shown = useMemo(() => p.features.filter((f) => visible(f, p.layers, zoom) || f.id === selId), [p.features, p.layers, zoom, selId]);
   const [s, w, n, e] = DEMO_BBOX;
@@ -146,7 +151,7 @@ export function MapView(p: Props) {
       preferCanvas
       zoomControl={false}
       className={`map${p.pickMode ? ' map--picking' : ''}`}
-      aria-label="Mappa di Pisa con ostacoli e segnalazioni"
+      aria-label={t.map.label}
     >
       {/* Tile OpenStreetMap desaturate via CSS (.tiles): percorso e ostacoli restano gli unici elementi colorati.
           Le basemap CARTO richiedono una chiave dal browser (filigrana "API KEY REQUIRED"), quindi non si usano. */}
@@ -156,7 +161,8 @@ export function MapView(p: Props) {
         maxZoom={19}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
-      <ZoomControl position="bottomright" zoomInTitle="Avvicina" zoomOutTitle="Allontana" />
+      {/* Leaflet legge i titoli solo alla creazione: con la chiave il controllo viene ricreato al cambio lingua. */}
+      <ZoomControl key={lang} position="bottomright" zoomInTitle={t.map.zoomIn} zoomOutTitle={t.map.zoomOut} />
       <ZoomWatcher onZoom={setZoom} />
       <MapEvents pickMode={p.pickMode} onPick={p.onPick} />
       <FocusController focus={p.focus} />
@@ -201,7 +207,7 @@ export function MapView(p: Props) {
           icon={featureIcon(f, f.id === selId)}
           // Centinaia di marker non devono finire nell'ordine di tabulazione: da tastiera si usa l'elenco nel pannello percorso.
           keyboard={false}
-          title={`${CERTAINTY_LABEL[f.certainty]}: ${f.label}`}
+          title={`${t.labels.certainty[f.certainty]}: ${osmLabel(f)}`}
           eventHandlers={clickHandler({ type: 'feature', feature: f })}
         />
       ))}
@@ -211,8 +217,8 @@ export function MapView(p: Props) {
           key={r.id}
           position={[r.lat, r.lng]}
           icon={reportIcon(r, r.id === selId)}
-          title={`${CATEGORY_LABEL[r.category]}${r.blocking ? ', non si passa' : ''} (${STATUS_LABEL[r.status].toLowerCase()})`}
-          alt={`${CATEGORY_LABEL[r.category]}${r.blocking ? ', non si passa' : ''} (${STATUS_LABEL[r.status].toLowerCase()})`}
+          title={reportTitle(r)}
+          alt={reportTitle(r)}
           zIndexOffset={500}
           eventHandlers={clickHandler({ type: 'report', report: r })}
         />
@@ -229,9 +235,9 @@ export function MapView(p: Props) {
           eventHandlers={{ click: (e) => (p.pickMode ? p.onPick({ lat: e.latlng.lat, lng: e.latlng.lng }) : p.onAlert(a)) }}
         />
       ))}
-      {p.reportPoint && <Marker position={[p.reportPoint.lat, p.reportPoint.lng]} icon={draftIcon} keyboard={false} zIndexOffset={900} title="Posizione della nuova segnalazione" />}
-      {p.from && <Marker position={[p.from.lat, p.from.lng]} icon={endpointIcon('A')} keyboard={false} zIndexOffset={1000} title={`Partenza: ${p.from.label}`} />}
-      {p.to && <Marker position={[p.to.lat, p.to.lng]} icon={endpointIcon('B')} keyboard={false} zIndexOffset={1000} title={`Arrivo: ${p.to.label}`} />}
+      {p.reportPoint && <Marker position={[p.reportPoint.lat, p.reportPoint.lng]} icon={draftIcon} keyboard={false} zIndexOffset={900} title={t.map.newReportPosition} />}
+      {p.from && <Marker position={[p.from.lat, p.from.lng]} icon={endpointIcon('A')} keyboard={false} zIndexOffset={1000} title={t.map.fromTitle(p.from.label)} />}
+      {p.to && <Marker position={[p.to.lat, p.to.lng]} icon={endpointIcon('B')} keyboard={false} zIndexOffset={1000} title={t.map.toTitle(p.to.label)} />}
       {p.userPos && (
         <CircleMarker center={[p.userPos.lat, p.userPos.lng]} radius={8} interactive={false}
           pathOptions={{ color: '#ffffff', weight: 3, fillColor: c.route, fillOpacity: 1 }} />

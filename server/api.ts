@@ -2,9 +2,11 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { langFromHeader } from '../shared/lang.ts';
 import { inPisa, PISA_BOUNDS, type GeocodeResult, type ServerStatus } from '../shared/types.ts';
 import { aiProvider } from './ai.ts';
 import { HttpError, USER_AGENT, type Env } from './errors.ts';
+import { currentLang, m, withLang } from './messages.ts';
 import { createReportStore } from './reports.ts';
 import { getFootRoute, getRoute } from './routing.ts';
 import { synthesizeSpeech, transcribeAudio, voiceStatus } from './voice.ts';
@@ -22,8 +24,10 @@ export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
   let lastNominatim = 0;
 
   async function geocode(q: string): Promise<GeocodeResult[]> {
-    const key = q.trim().toLowerCase();
-    if (key.length < 3) throw new HttpError(400, 'Scrivi almeno 3 lettere per cercare.');
+    // I nomi dei luoghi arrivano nella lingua della richiesta: la cache è separata per lingua.
+    const lang = currentLang();
+    const key = `${lang}:${q.trim().toLowerCase()}`;
+    if (q.trim().length < 3) throw new HttpError(400, m().geocodeShort);
     const hit = geocodeCache.get(key);
     if (hit) return hit;
     // Policy Nominatim: massimo 1 richiesta al secondo, User-Agent identificativo, niente autocompletamento.
@@ -32,20 +36,26 @@ export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
     lastNominatim = Date.now();
     const [s, w, n, e] = PISA_BOUNDS;
     const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-      q, format: 'jsonv2', limit: '5', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': 'it',
+      q, format: 'jsonv2', limit: '5', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': lang,
     })}`;
+    const down = m().geocodeDown;
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(10_000) })
-      .catch(() => { throw new HttpError(503, 'La ricerca degli indirizzi non funziona in questo momento. Scegli il punto sulla mappa.'); });
-    if (!res.ok) throw new HttpError(503, 'La ricerca degli indirizzi non funziona in questo momento. Scegli il punto sulla mappa.');
+      .catch(() => { throw new HttpError(503, down); });
+    if (!res.ok) throw new HttpError(503, down);
     const json = await res.json() as { display_name: string; lat: string; lon: string }[];
     const results = json.map((r) => ({ label: r.display_name, lat: Number(r.lat), lng: Number(r.lon) }));
     geocodeCache.set(key, results);
     return results;
   }
 
-  return async function handle(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  /** Ogni richiesta gira nella lingua chiesta dall'interfaccia (Accept-Language): la leggono i messaggi in server/messages.ts. */
+  return function handle(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (!url.pathname.startsWith('/api/')) return false;
+    if (!url.pathname.startsWith('/api/')) return Promise.resolve(false);
+    return withLang(langFromHeader(req.headers['accept-language']), () => route(req, res, url));
+  };
+
+  async function route(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     const path = url.pathname;
     const method = req.method ?? 'GET';
     try {
@@ -88,21 +98,21 @@ export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
         return true;
       }
 
-      const m = /^\/api\/reports\/([\w-]+)$/.exec(path);
-      if (method === 'PATCH' && m) {
-        if (!env.ADMIN_TOKEN) throw new HttpError(403, 'Modifica degli stati non abilitata su questo server.');
-        if (!sameSecret(req.headers['x-admin-token'], env.ADMIN_TOKEN)) throw new HttpError(401, 'Codice moderatore non valido.');
+      const single = /^\/api\/reports\/([\w-]+)$/.exec(path);
+      if (method === 'PATCH' && single) {
+        if (!env.ADMIN_TOKEN) throw new HttpError(403, m().statusDisabled);
+        if (!sameSecret(req.headers['x-admin-token'], env.ADMIN_TOKEN)) throw new HttpError(401, m().badModeratorCode);
         const { status } = (await body(req) ?? {}) as { status?: unknown };
-        return send(res, 200, await reports.setStatus(m[1], status));
+        return send(res, 200, await reports.setStatus(single[1], status));
       }
       if (method === 'POST' && path === '/api/route') {
         const { from, to, profile = 'wheelchair' } = (await body(req) ?? {}) as {
           from?: { lat?: unknown; lng?: unknown }; to?: { lat?: unknown; lng?: unknown }; profile?: unknown;
         };
         if (!from || !to || !inPisa(from.lat, from.lng) || !inPisa(to.lat, to.lng)) {
-          throw new HttpError(400, "Partenza e arrivo devono essere a Pisa.");
+          throw new HttpError(400, m().routeOutside);
         }
-        if (profile !== 'wheelchair' && profile !== 'foot') throw new HttpError(400, 'Profilo di percorso non valido.');
+        if (profile !== 'wheelchair' && profile !== 'foot') throw new HttpError(400, m().badProfile);
         const [a, b] = [from as { lat: number; lng: number }, to as { lat: number; lng: number }];
         if (profile === 'foot') return send(res, 200, await getFootRoute(a, b));
         // Segnalazioni da evitare (regole in shared/rules.ts) non risolte, nella zona del percorso (riquadro allargato di ~1 km).
@@ -117,13 +127,13 @@ export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
         return send(res, 200, await getRoute(a, b, env, avoid));
       }
       if (method === 'GET' && path === '/api/geocode') return send(res, 200, await geocode(url.searchParams.get('q') ?? ''));
-      throw new HttpError(404, 'Risorsa non trovata.');
+      throw new HttpError(404, m().notFound);
     } catch (e) {
       if (e instanceof HttpError) return send(res, e.status, { error: e.message });
       console.error(e);
-      return send(res, 500, { error: 'Qualcosa non ha funzionato. Riprova tra poco.' });
+      return send(res, 500, { error: m().generic });
     }
-  };
+  }
 }
 
 /** Confronto a tempo costante: la durata della risposta non rivela quanti caratteri del codice sono giusti. */
@@ -146,9 +156,9 @@ async function body(req: IncomingMessage, limit = 16_384): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > limit) throw new HttpError(413, 'Richiesta troppo grande.');
+    if (size > limit) throw new HttpError(413, m().tooLarge);
     chunks.push(chunk as Buffer);
   }
   if (!chunks.length) return null;
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new HttpError(400, 'JSON non valido.'); }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new HttpError(400, m().badJson); }
 }

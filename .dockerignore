@@ -1,0 +1,18 @@
+# Tutto ciò che non serve a costruire l'immagine, e ciò che non deve finirci dentro (chiavi, dati locali).
+.git
+.github
+node_modules
+dist
+dist-pages
+.cache
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+cloud
+img
+.impeccable
+server/data/osm-tiles
+server/data/osm-tiles.tmp
+server/data/reports.json
+server/data/photos

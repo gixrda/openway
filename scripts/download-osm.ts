@@ -31,4 +31,5 @@ if (index.scope !== 'full' || !Object.keys(index.cells ?? {}).length) throw new 
 await rm(target, { recursive: true, force: true });
 await rename(`${unpacked}/osm-tiles`, target);
 await rm(unpacked, { recursive: true, force: true });
+await rm(archive, { force: true }); // l'archivio non serve più: 125 MB in meno su disco
 console.log(`Dati OSM del ${index.fetchedAt}: ${Object.keys(index.cells).length} celle in server/data/osm-tiles/`);

@@ -2,7 +2,7 @@
 // Regola del progetto: mai "accessibile" o "sicuro", solo ciò che i dati permettono di verificare.
 
 import type { Scenario } from './copy.ts';
-import { STATIC } from './env.ts';
+import { HAS_APP, STATIC } from './env.ts';
 
 export const it = {
   /** Codice per Intl: date e numeri */
@@ -21,7 +21,7 @@ export const it = {
       { href: '#demo', label: 'Prova un percorso' },
       { href: '#progetto', label: 'Il progetto' },
     ],
-    cta: STATIC ? 'Come provarla' : 'Apri OpenWay',
+    cta: HAS_APP ? 'Apri OpenWay' : 'Come provarla',
     menu: 'Menu',
   },
   hero: {
@@ -269,16 +269,15 @@ export const it = {
   closing: {
     title: 'La città si scopre, insieme.',
     text: 'Apri la mappa, prova un percorso o segnala il primo ostacolo che incontri.',
-    primary: STATIC ? 'Come provarla' : 'Prova OpenWay',
+    primary: HAS_APP ? 'Prova OpenWay' : 'Come provarla',
     secondary: 'Guarda il codice',
   },
   footer: {
     about: 'Prototipo per orientarsi in sedia a rotelle in Italia.',
     productTitle: 'Prodotto',
     projectTitle: 'Progetto',
-    app: STATIC ? 'Come provarla' : 'Apri la mappa',
+    app: HAS_APP ? 'Apri la mappa' : 'Come provarla',
     repo: 'Codice sorgente',
-    cloud: 'Edizione online (versione precedente)',
     privacyTitle: 'Privacy',
     privacy: [
       'Questa pagina non usa cookie né strumenti di statistica, e il carattere è servito dal sito stesso.',

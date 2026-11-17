@@ -95,7 +95,8 @@ src/
   landing/         landing page (/landing/, landing/index.html): hero con mappa, demo dei percorsi, testi in copy.it.ts e copy.en.ts
 tests/             Vitest (217 test), senza rete: i servizi esterni sono simulati
 scripts/           build-osm (dati di tutta l'Italia), download-osm (dati già pronti), build-region (confine), osm-extract (estratto Geofabrik e osmium), fetch-osm (snapshot demo), check-gemma (prova dal vivo dell'AI)
-cloud/             edizione pubblicata (Cloudflare Workers + D1): app separata, vedi cloud/README.md
+cloud/             edizione precedente e separata (Cloudflare Workers + D1, solo Pisa): non segue più l'app principale, vedi cloud/README.md
+Dockerfile         immagine dell'app completa per la demo pubblica (dati OSM scaricati dalla release osm-data)
 ```
 
 ## Flusso 1 — Calcolo di un percorso

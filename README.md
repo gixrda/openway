@@ -6,7 +6,7 @@ OpenWay aiuta chi si muove in sedia a rotelle a orientarsi in Italia (è nato a 
 
 > OpenWay non dichiara mai un percorso "accessibile" o "sicuro". Mostra quello che i dati permettono di verificare: l'assenza di ostacoli noti non è una garanzia e nessun percorso è stato controllato di persona.
 
-Prototipo nato all'Hacktoberfest del GDG Pisa (ottobre 2026), secondo classificato come miglior progetto open source. Il progetto si chiamava *AccessGo*: il documento di partenza `AccessGo.md` conserva il vecchio nome. L'edizione pubblicata su https://accessogo.xyxzwb.chatgpt.site/ vive nella cartella [`cloud/`](cloud/README.md) ed è un'app separata. L'architettura è descritta in [ARCHITECTURE.md](ARCHITECTURE.md).
+Prototipo nato all'Hacktoberfest del GDG Pisa (ottobre 2026), secondo classificato come miglior progetto open source. Il progetto si chiamava *AccessGo*: il documento di partenza `AccessGo.md` conserva il vecchio nome. La demo pubblica è l'app di questo repository, pubblicata come contenitore (vedi [Pubblicare l'app](#pubblicare-lapp)). La cartella [`cloud/`](cloud/README.md) contiene un'edizione precedente e separata, ferma alla sola Pisa (https://accessogo.xyxzwb.chatgpt.site/): non segue più l'app principale. L'architettura è descritta in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -49,7 +49,7 @@ Per provarla dal telefono sulla stessa rete Wi‑Fi:
 npm run dev -- --host       # apri dal telefono l'indirizzo "Network" stampato, es. http://172.20.10.2:5173
 ```
 
-Dal telefono via `http://` funzionano mappa, percorsi e segnalazioni. **GPS e microfono no**: i browser li concedono solo su `https://` o `localhost`. Per quelli usa l'edizione `cloud/` pubblicata in HTTPS.
+Dal telefono via `http://` funzionano mappa, percorsi e segnalazioni. **GPS e microfono no**: i browser li concedono solo su `https://` o `localhost`. Per quelli serve l'app pubblicata in HTTPS (vedi [Pubblicare l'app](#pubblicare-lapp)).
 
 Versione di produzione (un solo processo Node che serve API e interfaccia):
 
@@ -70,6 +70,39 @@ Tutte le chiavi sono lette **solo dal server**: non hanno prefisso `VITE_` e non
 | `OLLAMA_URL`, `OLLAMA_MODEL` | Gemma in locale con Ollama, al posto di Google | `ollama pull gemma3` | — |
 | `ADMIN_TOKEN` | Codice per cambiare lo stato delle segnalazioni: un valore lungo e casuale (vuoto nel file di esempio) | lo scegli tu | cambio stato disabilitato |
 | `PORT` | Porta di `npm start` (default 8787) | — | — |
+
+---
+
+## Pubblicare l'app
+
+L'app completa (mappa, percorsi calcolati dal vivo, segnalazioni, voce) ha bisogno del server: GitHub Pages ospita solo la landing statica. Il [`Dockerfile`](Dockerfile) costruisce un'immagine con interfaccia, server e dati di tutta l'Italia, adatta a qualunque servizio che esegue contenitori da un repository GitHub (per esempio Render, Fly.io, Koyeb, Cloud Run).
+
+Prima del primo deploy: la release `osm-data` deve esistere (workflow **Dati OSM**, da lanciare a mano una volta). Senza, il build dell'immagine si ferma invece di pubblicare una demo con i soli dati di Pisa.
+
+```bash
+docker build -t openway .                                   # scarica i dati (~125 MB) e costruisce: immagine di ~1,6 GB
+docker run -p 8787:8787 --env-file .env -v openway-data:/data openway   # http://localhost:8787
+docker build --build-arg OSM_DEMO=1 -t openway-demo .       # solo per prove: snapshot demo di Pisa, niente download
+```
+
+Cosa impostare sul servizio scelto:
+
+| Impostazione | Valore |
+|---|---|
+| Porta | quella della variabile `PORT` (8787 se il servizio non la imposta) |
+| Controllo di salute | `GET /api/status` |
+| Volume persistente | montato su `/data`: lì stanno segnalazioni e foto. Senza volume si perdono a ogni deploy o riavvio |
+| Variabili (tutte facoltative) | le stesse di `.env.example`: `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ADMIN_TOKEN`, `ORS_API_KEY`… Vanno inserite nel pannello del servizio, mai nel repository |
+| Memoria | il server usa circa 200 MB |
+
+Da sapere prima di rendere pubblica una demo:
+
+- Con le chiavi impostate, chiunque apra la demo consuma i crediti di Gemma ed ElevenLabs di chi le ha messe. Senza chiavi l'app funziona con i ripieghi dichiarati (regole a parole chiave, voce disattivata).
+- Senza `ADMIN_TOKEN` nessuno può segnare una segnalazione come controllata o risolta: quelle bloccanti restano evitate dai percorsi.
+- Valhalla e Nominatim sono istanze pubbliche a uso moderato: vanno bene per una demo, non per molto traffico.
+- Per aggiornare i dati OSM serve un nuovo build dell'immagine senza cache degli strati (o dopo un nuovo commit): è il build che li scarica dalla release.
+
+Dopo il deploy, scrivi l'indirizzo della demo in `DEMO_URL` (`src/landing/env.ts`): la landing su GitHub Pages lo usa per i bottoni "Apri OpenWay" e per aprire nell'app i tragitti demo. Finché è vuoto, quei bottoni portano alle istruzioni di installazione.
 
 ---
 

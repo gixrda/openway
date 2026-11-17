@@ -3,7 +3,7 @@
 
 import type { Copy } from './copy.it.ts';
 import { it } from './copy.it.ts';
-import { STATIC } from './env.ts';
+import { HAS_APP, STATIC } from './env.ts';
 
 // Street names stay as they are; only the short description of each demo trip is translated.
 const SCENARIO_HINTS: Record<string, string> = {
@@ -30,7 +30,7 @@ export const en: Copy = {
       { href: '#demo', label: 'Try a route' },
       { href: '#progetto', label: 'The project' },
     ],
-    cta: STATIC ? 'How to try it' : 'Open OpenWay',
+    cta: HAS_APP ? 'Open OpenWay' : 'How to try it',
     menu: 'Menu',
   },
   hero: {
@@ -271,16 +271,15 @@ export const en: Copy = {
   closing: {
     title: 'A city is discovered together.',
     text: 'Open the map, try a route or report the first obstacle you come across.',
-    primary: STATIC ? 'How to try it' : 'Try OpenWay',
+    primary: HAS_APP ? 'Try OpenWay' : 'How to try it',
     secondary: 'See the code',
   },
   footer: {
     about: 'A prototype for finding your way in a wheelchair in Italy.',
     productTitle: 'Product',
     projectTitle: 'Project',
-    app: STATIC ? 'How to try it' : 'Open the map',
+    app: HAS_APP ? 'Open the map' : 'How to try it',
     repo: 'Source code',
-    cloud: 'Online edition (earlier version)',
     privacyTitle: 'Privacy',
     privacy: [
       'This page uses no cookies and no analytics tools, and the typeface is served by the site itself.',

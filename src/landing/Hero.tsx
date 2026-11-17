@@ -8,6 +8,7 @@ import { verdictOf } from '../lib/verdict.ts';
 import { APP_URL, SCENARIOS, useCopy } from './copy.ts';
 import { LandingMap } from './LandingMap.tsx';
 import { bestFork } from './livingLine.ts';
+import { HAS_APP } from './env.ts';
 import { geocodeDirect, STATIC } from './staticData.ts';
 import { useAlerts, useRoute } from './useLanding.ts';
 
@@ -84,7 +85,7 @@ function SearchBox({ onPick, inputRef, compact }: { onPick: (r: GeocodeResult) =
                   <Icon name="pin" size={16} />
                   <span><strong>{name}</strong><span>{area}</span></span>
                 </button>
-                {active && !STATIC && (
+                {active && HAS_APP && (
                   <a className="ow-link" href={`${APP_URL}?to=${r.lat.toFixed(6)},${r.lng.toFixed(6)}`}>
                     {t.openRoute}<Icon name="route" size={16} />
                   </a>

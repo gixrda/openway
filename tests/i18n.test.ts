@@ -1,4 +1,4 @@
-import { readFile, mkdtemp, writeFile } from 'node:fs/promises';
+import { readFile, mkdtemp } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -92,8 +92,7 @@ describe('lingua della richiesta', () => {
 
     it('risponde in inglese a chi lo chiede e salva la lingua della segnalazione', async () => {
       const dir = await mkdtemp(join(tmpdir(), 'openway-i18n-'));
-      await writeFile(join(dir, 'osm.json'), '{"features":[]}');
-      const api = createApi({ env: {}, reportsFile: join(dir, 'reports.json'), osmFile: join(dir, 'osm.json') });
+      const api = createApi({ env: {}, reportsFile: join(dir, 'reports.json'), osmDir: join(dir, 'osm') });
       server = createServer((req, res) => { void api(req, res); });
       await new Promise<void>((r) => server.listen(0, r));
       const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -107,7 +106,7 @@ describe('lingua della richiesta', () => {
 
       expect((await call('/api/geocode?q=a', 'en')).error).toBe('Type at least 3 letters to search.');
       expect((await call('/api/geocode?q=a', null)).error).toBe('Scrivi almeno 3 lettere per cercare.');
-      expect((await call('/api/route', 'en', { from: { lat: 0, lng: 0 }, to: { lat: 0, lng: 0 } })).error).toBe('The start and the destination must be in Pisa.');
+      expect((await call('/api/route', 'en', { from: { lat: 0, lng: 0 }, to: { lat: 0, lng: 0 } })).error).toBe('The start and the destination must be in Tuscany.');
 
       const point = { lat: 43.7175, lng: 10.4005 };
       const english = await call('/api/reports', 'en', { ...point, description: 'There is a high step and I cannot get past.' });

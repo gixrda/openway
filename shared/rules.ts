@@ -17,6 +17,11 @@ export const RULES = {
   RAW_NEAR_M: 15,
   /** Semilato dell'area esclusa attorno al punto agganciato alla rete (piccola: non tocca le vie parallele) */
   AVOID_HALF_M: 5,
+  /**
+   * Distanza massima in linea d'aria tra partenza e arrivo. Ogni percorso candidato viene verificato tratto per tratto
+   * (trace_attributes) su un'istanza pubblica di Valhalla con limiti d'uso: 10 km coprono gli spostamenti dentro una città.
+   */
+  MAX_ROUTE_M: 10_000,
 } as const;
 
 /** Categorie incompatibili con la sedia a rotelle anche senza la parola "bloccante" nel testo. */

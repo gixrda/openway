@@ -1,10 +1,14 @@
 import react from '@vitejs/plugin-react';
-import { copyFile, mkdir } from 'node:fs/promises';
+import { copyFile, cp, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin, type UserConfig } from 'vite';
 import { createApi } from './server/api.ts';
+import { ensureTiles } from './server/tiles.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
+const osmDir = `${root}server/data/osm-tiles`;
+// Griglia dei dati OSM: quella regionale se è stata scaricata o costruita, altrimenti creata dallo snapshot demo di Pisa.
+const osmReady = () => ensureTiles(osmDir, `${root}server/data/osm-pisa.json`);
 
 // Versione statica della landing per GitHub Pages: `vite build --mode static`.
 // Pages non permette header HTTP, quindi la Content Security Policy viaggia come <meta>.
@@ -32,7 +36,9 @@ function pagesBuild(): Plugin {
       // Dati serviti come file (al posto delle API) e landing come pagina iniziale del sito.
       const out = `${root}dist-pages/`;
       await mkdir(`${out}data`, { recursive: true });
-      await copyFile(`${root}server/data/osm-pisa.json`, `${out}data/osm-pisa.json`);
+      const osm = await osmReady();
+      if (osm.scope === 'demo') console.warn('\nDati OSM: solo lo snapshot demo di Pisa (npm run osm:download per tutta la Toscana).');
+      await cp(osmDir, `${out}data/osm`, { recursive: true });
       await copyFile(`${root}server/data/routes-recorded.json`, `${out}data/routes-recorded.json`);
       await copyFile(`${out}landing/index.html`, `${out}index.html`);
       await copyFile(`${out}index.html`, `${out}404.html`);
@@ -57,11 +63,12 @@ export default defineConfig(({ mode }): UserConfig => {
       {
         // Le API girano nello stesso processo di Vite: un solo comando (npm run dev) per la demo.
         name: 'openway-api',
-        configureServer(server) {
+        async configureServer(server) {
+          await osmReady();
           const api = createApi({
             env: { ...process.env, ...loadEnv(mode, root, '') }, // le chiavi restano lato server, senza prefisso VITE_
             reportsFile: `${root}server/data/reports.json`,
-            osmFile: `${root}server/data/osm-pisa.json`,
+            osmDir,
           });
           server.middlewares.use((req, res, next) => { api(req, res).then((handled) => handled || next(), next); });
         },

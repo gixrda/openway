@@ -2,7 +2,7 @@
 
 <img src="public/logo.png" alt="" width="72" align="right">
 
-OpenWay aiuta chi si muove in sedia a rotelle a orientarsi a Pisa. Calcola un percorso adatto, lo confronta con i dati di accessibilità di OpenStreetMap e con le segnalazioni degli utenti, e dice chiaramente **cosa si sa, cosa è solo probabile e cosa manca**. Si usa con la mappa, con le dita o con la voce.
+OpenWay aiuta chi si muove in sedia a rotelle a orientarsi in Toscana (è nato a Pisa, dove i dati sono più ricchi). Calcola un percorso adatto, lo confronta con i dati di accessibilità di OpenStreetMap e con le segnalazioni degli utenti, e dice chiaramente **cosa si sa, cosa è solo probabile e cosa manca**. Si usa con la mappa, con le dita o con la voce.
 
 > OpenWay non dichiara mai un percorso "accessibile" o "sicuro". Mostra quello che i dati permettono di verificare: l'assenza di ostacoli noti non è una garanzia e nessun percorso è stato controllato di persona.
 
@@ -35,12 +35,13 @@ git clone https://github.com/gixrda/openway.git
 cd openway
 npm install
 cp .env.example .env        # facoltativo: senza chiavi funziona lo stesso, con i fallback dichiarati
+npm run osm:download        # facoltativo: dati di tutta la Toscana (senza, solo la zona universitaria di Pisa)
 npm run dev                 # apri http://localhost:5173
 ```
 
 La landing page di presentazione è su http://localhost:5173/landing/ (in produzione `/landing/`): mappa interattiva con un percorso di esempio calcolato dal vivo, ricerca indirizzi e i cinque tragitti demo. Testi in `src/landing/copy.ts`, specifiche visive in `design_system.md`.
 
-Una versione statica della landing è pubblicata su GitHub Pages: https://gixrda.github.io/openway/ . Senza server: dati OpenStreetMap inclusi, percorsi demo registrati con la data (`npm run record:routes`), ricerca diretta a Nominatim. La pubblica il workflow `.github/workflows/pages.yml` a ogni push su `main`. Sicurezza: vedi [SECURITY.md](SECURITY.md).
+Una versione statica della landing è pubblicata su GitHub Pages: https://gixrda.github.io/openway/ . Senza server: dati OpenStreetMap inclusi come celle (scaricate dalla release `osm-data` durante il build), percorsi demo registrati con la data (`npm run record:routes`), ricerca diretta a Nominatim. La pubblica il workflow `.github/workflows/pages.yml` a ogni push su `main`. Sicurezza: vedi [SECURITY.md](SECURITY.md).
 
 Per provarla dal telefono sulla stessa rete Wi‑Fi:
 
@@ -100,7 +101,7 @@ Con un percorso calcolato e la voce attiva compare **Guida vocale**:
 Apri una segnalazione → *Azioni moderatore* → inserisci `ADMIN_TOKEN` → *Controllata sul posto* o *Risolta*. Una segnalazione risolta non viene più evitata dai percorsi.
 
 ### Legenda della mappa
-Il bottone con i livelli (in alto a destra) accende e spegne ostacoli noti, segnalazioni, possibili difficoltà, elementi utili, attraversamenti senza informazioni e accessibilità dei negozi. Da lontano si vedono solo ostacoli noti e segnalazioni; avvicinando compare il resto. Il riquadro tratteggiato è la zona coperta dai dati (zona universitaria).
+Il bottone con i livelli (in alto a destra) accende e spegne ostacoli noti, segnalazioni, possibili difficoltà, elementi utili, attraversamenti senza informazioni e accessibilità dei negozi. Gli ostacoli noti compaiono dal livello di zoom 16, il resto avvicinando ancora; da lontano si vedono le segnalazioni e gli ostacoli del percorso calcolato. Il tratteggio indica quanti dati ha OpenStreetMap: fitto dove non ne ha, rado dove ne ha pochi, assente dove ne ha di più (che non vuol dire tutti). La linea tratteggiata è il confine della Toscana; fuori la mappa è velata.
 
 ### Lingue
 L'app e la landing sono in **italiano e inglese**. La lingua segue quella del browser (italiano se è tra le lingue preferite, altrimenti inglese) e si cambia con il bottone **EN / IT**: nella capsula dei controlli sulla mappa, nell'intestazione della landing (su telefono dentro il menu). La scelta resta salvata; un link può fissarla con `?lang=en` o `?lang=it`.
@@ -134,12 +135,15 @@ Demo in 3 minuti: link 5 (spiega la scelta) → link 3 (limite dichiarato) → l
 | `npm run dev` | Vite + API nello stesso processo (`-- --host` per la rete locale) |
 | `npm run build` | type-check (`tsc -b`) e build del frontend in `dist/` |
 | `npm start` | server Node di produzione: API + `dist/` |
-| `npm test` | 136 test Vitest (dati OSM, analisi e confronto percorsi, routing sicuro, ricalcolo, AI e fallback, voce, API) |
+| `npm test` | 205 test Vitest (dati OSM e griglia, confine regionale, analisi e confronto percorsi, routing sicuro, ricalcolo, AI e fallback, voce, API, lingue) |
 | `npm run typecheck` | solo type-check |
 | `npm run check:ai` | prova dal vivo di Gemma su segnalazioni di esempio (richiede la chiave) |
-| `npm run fetch:osm` | riscarica lo snapshot OpenStreetMap della zona (una sola richiesta a Overpass) |
+| `npm run osm:download` | scarica i dati OpenStreetMap di tutta la Toscana già pronti (release `osm-data`, ~10 MB compressi) in `server/data/osm-tiles/` |
+| `npm run osm:build` | ricostruisce gli stessi dati dall'estratto Geofabrik (390 MB, scaricato in `.cache/osm/`); richiede `osmium-tool`; `-- --refresh` riscarica l'estratto |
+| `npm run osm:region` | rigenera il confine semplificato della Toscana (`shared/region.ts`) dopo `osm:build` |
+| `npm run fetch:osm` | riscarica lo snapshot demo della zona universitaria di Pisa (una sola richiesta a Overpass), usato quando mancano i dati regionali |
 | `npm run record:routes` | registra i percorsi dei tragitti demo per la landing statica (`server/data/routes-recorded.json`) |
-| `npm run build:pages` | build statico della landing per GitHub Pages in `dist-pages/` |
+| `npm run build:pages` | build statico della landing per GitHub Pages in `dist-pages/` (`npm run preview:pages` per provarlo in locale) |
 
 Lint non configurato (scelta per ridurre le dipendenze); TypeScript in modalità `strict`.
 
@@ -147,8 +151,10 @@ Lint non configurato (scelta per ridurre le dipendenze); TypeScript in modalità
 
 ## Dati e servizi
 
-- **OpenStreetMap** (© OpenStreetMap contributors, ODbL): snapshot del 24/10/2026 in `server/data/osm-pisa.json`, 1158 elementi della zona universitaria (55 ostacoli noti, 398 possibili difficoltà, 105 elementi utili, 600 dati descrittivi). Nessun dato inventato. Le tile della mappa sono quelle di OpenStreetMap, desaturate via CSS.
-- **Valhalla** (istanza pubblica FOSSGIS): percorsi, istruzioni di svolta, aggancio delle segnalazioni alla rete pedonale. **Nominatim**: ricerca indirizzi (1 richiesta al secondo, limitata a Pisa). **OSRM** (FOSSGIS): ripiego pedonale, dichiarato.
+- **OpenStreetMap** (© OpenStreetMap contributors, ODbL): tutta la Toscana, dall'estratto [Geofabrik](https://download.geofabrik.de/europe/italy/centro.html) "Italia centrale" ritagliato sul confine regionale. Dati del 16/11/2026: 155.409 elementi (10.881 ostacoli noti, 37.051 possibili difficoltà, 5.213 elementi utili, 16.911 sentieri tenuti solo per l'analisi del percorso), divisi in 5.691 celle di circa 1,8 km di lato (`server/data/osm-tiles/`, ~55 MB, non nel repository). Il browser scarica solo le celle della zona guardata e quelle attraversate dal percorso. Nessun dato inventato. Le tile della mappa sono quelle di OpenStreetMap, desaturate via CSS.
+- **Dove i dati sono pochi lo si vede.** Solo ~300 celle (i centri delle città) hanno più di 50 elementi utili; 1.300 non ne hanno nessuno. La mappa tratteggia le zone con pochi dati o nessuno, una riga di testo dice quanti elementi ci sono nella zona guardata, e l'esito di un percorso avvisa quando si conosce il fondo per meno del 25% del tragitto.
+- **Senza i dati regionali l'app parte lo stesso** con lo snapshot demo della zona universitaria di Pisa (`server/data/osm-pisa.json`, 24/10/2026, 1158 elementi) e lo dichiara nella legenda. I dati regionali si pubblicano come allegato della release `osm-data`, rigenerato ogni lunedì da `.github/workflows/osm-data.yml`.
+- **Valhalla** (istanza pubblica FOSSGIS): percorsi, istruzioni di svolta, aggancio delle segnalazioni alla rete pedonale. **Nominatim**: ricerca indirizzi (1 richiesta al secondo, limitata alla Toscana). **OSRM** (FOSSGIS): ripiego pedonale, dichiarato.
 - **Gemma 4** via Google AI Studio: lettura delle segnalazioni, risposta in JSON validata lato server.
 - **ElevenLabs**: Scribe v2 (trascrizione) e Flash v2.5 (sintesi), solo tramite il server. Nessun audio o trascrizione viene conservato.
 
@@ -164,7 +170,9 @@ Le segnalazioni sono salvate in `server/data/reports.json` e le foto in `server/
 - La guida vocale funziona solo con la pagina aperta e lo schermo acceso e non ricalcola da sola se esci dal percorso. È stata verificata nel browser con un microfono simulato e audio sintetico, non camminando con un telefono reale.
 - OpenRouteService e Ollama sono coperti dai test con risposte simulate ma non provati contro i servizi reali.
 - Persistenza su file: adatta a una demo, non a più istanze o a molti utenti. Nessuna autenticazione, un solo codice moderatore condiviso.
-- Solo Pisa, zona universitaria.
+- Solo la Toscana (confine regionale semplificato, con 1 km di margine) e percorsi fino a 10 km in linea d'aria: ogni percorso candidato viene verificato tratto per tratto su un'istanza pubblica di Valhalla con limiti d'uso.
+- Fuori dai centri delle città OpenStreetMap ha pochi dati sull'accessibilità: lì "nessun ostacolo noto" vuol dire soprattutto "nessun dato". I percorsi demo e le verifiche più accurate restano quelli di Pisa.
+- I sentieri (`highway=path` senza indizi urbani, regola in `shared/osmClassify.ts`) non sono disegnati sulla mappa: compaiono solo se il percorso calcolato ne usa uno.
 
 ## Licenze e attribuzioni
 

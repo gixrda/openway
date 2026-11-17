@@ -167,7 +167,7 @@ function RouteSummary({ route, analysis, onSelect, onFocus, onPosition, compare 
   const t = useT();
   const r = t.route;
   const alerts = routeAlerts(route, analysis);
-  const v = verdictOf(route, alerts);
+  const v = verdictOf(route, alerts, analysis.coverage);
   const foot = route.mode === 'wheelchair' && compare.footRoute && compare.footAnalysis ? compare.footRoute : null;
   const c = foot ? compareRoutes({ distanceM: route.distanceM, analysis }, { distanceM: foot.distanceM, analysis: compare.footAnalysis! }) : null;
   const s = route.safety;

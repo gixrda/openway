@@ -1,11 +1,15 @@
 import L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
-import { CircleMarker, MapContainer, Marker, Polyline, Rectangle, TileLayer, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
-import { DEMO_BBOX, PISA_BOUNDS, type LatLngTuple, type OsmFeature, type Report, type RouteResult } from '../../shared/types.ts';
+import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
+import { REGION_BOUNDS } from '../../shared/area.ts';
+import type { OsmIndex } from '../../shared/tiles.ts';
+import type { LatLngTuple, OsmFeature, Report, RouteResult } from '../../shared/types.ts';
 import { osmLabel, useLang, useT } from '../i18n/index.ts';
 import { CATEGORY_ICON } from '../lib/labels.ts';
 import type { RouteAlert } from '../lib/alerts.ts';
 import { iconSvg, type IconName } from '../lib/icons.ts';
+import { FEATURE_ZOOM, type Bounds } from '../lib/osmTiles.ts';
+import { CoverageLayer } from './CoverageLayer.tsx';
 
 export type Layers = Record<'known' | 'possible' | 'positive' | 'info' | 'places' | 'reports', boolean>;
 export type Selection = { type: 'feature'; feature: OsmFeature } | { type: 'report'; report: Report } | null;
@@ -13,8 +17,15 @@ export type Focus = { coords: LatLngTuple[]; nonce: number } | null;
 export type PickMode = 'from' | 'to' | 'report' | null;
 type Place = { lat: number; lng: number; label: string };
 
+export type MapViewState = { bounds: Bounds; zoom: number };
+
 interface Props {
+  /** Elementi OSM della zona guardata (più quelli del percorso e l'elemento selezionato) */
   features: OsmFeature[];
+  /** Indice delle celle: quanti dati ci sono zona per zona (null finché non è arrivato) */
+  index: OsmIndex | null;
+  /** Zona guardata, comunicata all'avvio e a ogni spostamento: decide quali celle scaricare */
+  onView: (v: MapViewState) => void;
   reports: Report[];
   layers: Layers;
   route: RouteResult | null;
@@ -88,10 +99,11 @@ function FocusController({ focus }: { focus: Focus }) {
   return null;
 }
 
-// Da lontano si vedono solo ostacoli noti e segnalazioni; il resto compare avvicinando la mappa.
-const DETAIL_ZOOM = 17;
+// Gli ostacoli noti si vedono da FEATURE_ZOOM (quando le celle vengono scaricate); il resto compare avvicinando ancora.
+const DETAIL_ZOOM = FEATURE_ZOOM + 1;
 
 function visible(f: OsmFeature, layers: Layers, zoom: number): boolean {
+  if (f.trail) return false; // i sentieri contano solo nell'analisi del percorso (shared/osmClassify.ts)
   if (f.certainty === 'known_obstacle' && f.scope === 'path') return layers.known;
   if (zoom < DETAIL_ZOOM) return false;
   if (f.scope === 'place') return layers.places;
@@ -100,8 +112,14 @@ function visible(f: OsmFeature, layers: Layers, zoom: number): boolean {
   return layers.info && f.geometry.type === 'point'; // le linee "info" servono solo al calcolo della copertura
 }
 
-function ZoomWatcher({ onZoom }: { onZoom: (z: number) => void }) {
-  const map = useMapEvents({ zoomend: () => onZoom(map.getZoom()) });
+function ViewWatcher({ onZoom, onView }: { onZoom: (z: number) => void; onView: Props['onView'] }) {
+  const report = () => {
+    const b = map.getBounds();
+    onZoom(map.getZoom());
+    onView({ bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()], zoom: map.getZoom() });
+  };
+  const map = useMapEvents({ moveend: report });
+  useEffect(report, []); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
@@ -119,8 +137,8 @@ function useDarkMode(): boolean {
 
 // Colori dei tracciati: il percorso è l'unico elemento blu sulla mappa desaturata.
 const PALETTE = {
-  light: { route: '#0a66d8', casing: '#ffffff', foot: '#3b4350', frame: '#475569', walk: '#ffffff' },
-  dark: { route: '#4c95ff', casing: '#0b0f14', foot: '#cbd5e1', frame: '#94a3b8', walk: '#0b0f14' },
+  light: { route: '#0a66d8', casing: '#ffffff', foot: '#3b4350', walk: '#ffffff' },
+  dark: { route: '#4c95ff', casing: '#0b0f14', foot: '#cbd5e1', walk: '#0b0f14' },
 };
 
 export function MapView(p: Props) {
@@ -138,16 +156,17 @@ export function MapView(p: Props) {
     `${t.labels.category[r.category]}${r.blocking ? t.map.notPassable : ''} (${t.labels.status[r.status].toLowerCase()})`;
   const c = dark ? PALETTE.dark : PALETTE.light;
   const shown = useMemo(() => p.features.filter((f) => visible(f, p.layers, zoom) || f.id === selId), [p.features, p.layers, zoom, selId]);
-  const [s, w, n, e] = DEMO_BBOX;
-  const [ps, pw, pn, pe] = PISA_BOUNDS;
+  const [rs, rw, rn, re] = REGION_BOUNDS;
+  const pad = 0.4; // margine attorno alla regione, per poter centrare anche i luoghi sul confine
 
   return (
     <MapContainer
-      center={[43.7175, 10.4005]}
+      // La mappa si apre sulla partenza o sull'arrivo del link, se ci sono; altrimenti su Pisa, dove è nato il progetto.
+      center={p.from ? [p.from.lat, p.from.lng] : p.to ? [p.to.lat, p.to.lng] : [43.7175, 10.4005]}
       zoom={16}
-      minZoom={13}
+      minZoom={8}
       maxZoom={19}
-      maxBounds={[[ps, pw], [pn, pe]]}
+      maxBounds={[[rs - pad, rw - pad], [rn + pad, re + pad]]}
       preferCanvas
       zoomControl={false}
       className={`map${p.pickMode ? ' map--picking' : ''}`}
@@ -163,10 +182,10 @@ export function MapView(p: Props) {
       />
       {/* Leaflet legge i titoli solo alla creazione: con la chiave il controllo viene ricreato al cambio lingua. */}
       <ZoomControl key={lang} position="bottomright" zoomInTitle={t.map.zoomIn} zoomOutTitle={t.map.zoomOut} />
-      <ZoomWatcher onZoom={setZoom} />
+      <ViewWatcher onZoom={setZoom} onView={p.onView} />
+      {p.index && <CoverageLayer index={p.index} dark={dark} />}
       <MapEvents pickMode={p.pickMode} onPick={p.onPick} />
       <FocusController focus={p.focus} />
-      <Rectangle bounds={[[s, w], [n, e]]} interactive={false} pathOptions={{ color: c.frame, weight: 1.5, dashArray: '6 6', fill: false, opacity: 0.5 }} />
 
       {p.compareRoute && (
         <>

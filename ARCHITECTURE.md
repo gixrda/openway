@@ -20,7 +20,7 @@ flowchart LR
     RP[reports.ts<br/>segnalazioni]
     AI[ai.ts<br/>lettura con Gemma]
     VC[voice.ts<br/>ElevenLabs]
-    DATA[(osm-pisa.json<br/>reports.json + photos/)]
+    DATA[(osm-tiles/ celle OSM<br/>reports.json + photos/)]
   end
 
   subgraph Esterni["Servizi esterni (tutti gratuiti)"]
@@ -31,7 +31,7 @@ flowchart LR
     GEM[Google AI Studio<br/>Gemma 4]
     EL[ElevenLabs<br/>Scribe v2 · Flash v2.5]
     TILE[Tile OpenStreetMap]
-    OVP[Overpass API<br/>solo per lo snapshot]
+    OVP[Estratto Geofabrik + osmium<br/>solo per costruire i dati]
   end
 
   UI --> API
@@ -50,7 +50,7 @@ flowchart LR
   API --> VC --> EL
   RP --> DATA
   API --> DATA
-  OVP -. npm run fetch:osm .-> DATA
+  OVP -. npm run osm:build .-> DATA
 ```
 
 Regole che valgono ovunque:
@@ -64,12 +64,15 @@ Regole che valgono ovunque:
 
 ```
 shared/            tipi e regole condivisi tra browser e server
-  types.ts         OsmFeature, Report, RouteResult, Interpretation, limiti geografici di Pisa
-  rules.ts         soglie in metri e regola "questa segnalazione va evitata?"
+  types.ts         OsmFeature, Report, RouteResult, Interpretation
+  area.ts          l'area in cui l'app funziona: inTuscany() sul confine semplificato, distanza in linea d'aria
+  region.ts        confine della Toscana (generato da scripts/build-region.ts)
+  tiles.ts         griglia dei dati OSM: celle, indice, livelli "nessun dato / pochi / di più"
+  rules.ts         soglie in metri (anche la distanza massima di un percorso) e regola "questa segnalazione va evitata?"
   geo.ts           proiezione locale, distanza punto-linea
   navigation.ts    istruzioni di svolta posizionate sulla geometria
   lang.ts          lingue dell'interfaccia (it, en) e lettura di Accept-Language
-  osmClassify.ts   tag OSM → tipo, certezza ed etichetta nella lingua richiesta (usato da server e interfaccia)
+  osmClassify.ts   tag OSM → tipo, certezza ed etichetta nella lingua richiesta; regola dei sentieri (usato da server e interfaccia)
 server/
   api.ts           handler HTTP /api/* (usato da Vite in dev e da index.ts in produzione)
   routing.ts       Valhalla (3 alternative, istruzioni nella lingua della richiesta, esclusioni), ORS, OSRM, aggancio alla rete (/locate)
@@ -77,20 +80,21 @@ server/
   reports.ts       bozze, creazione, foto, stati; persistenza su file con scritture atomiche
   ai.ts            prompt, chiamata a Gemma (Google o Ollama), validazione del JSON, fallback a regole
   voice.ts         trascrizione e sintesi ElevenLabs con limiti e controlli sul file audio
-  osm.ts           query Overpass e normalizzazione dello snapshot (la classificazione dei tag è in shared/osmClassify.ts)
+  osm.ts           normalizzazione degli elementi OSM, da Overpass o dall'estratto filtrato con osmium (la classificazione dei tag è in shared/osmClassify.ts)
+  tiles.ts         costruzione e scrittura della griglia; ripiego sullo snapshot demo se i dati regionali mancano
   messages.ts      testi del server in italiano e inglese, nella lingua della richiesta in corso (AsyncLocalStorage)
-  data/            snapshot OSM (committato), segnalazioni e foto (ignorati da git)
+  data/            snapshot demo di Pisa (committato); griglia regionale osm-tiles/, segnalazioni e foto (ignorati da git)
 src/
   App.tsx          stato dell'app, calcolo e ricalcolo, orchestrazione dei pannelli
   components/      MapView, RoutePanel, ReportPanel, DetailPanel, MapControls, NavigationPanel, DictationButton
-  lib/             analysis (ostacoli lungo il percorso), compare, reroute, alerts, speech, navigation, labels, icons
+  lib/             osmTiles (celle da scaricare), analysis (ostacoli lungo il percorso), compare, reroute, alerts, speech, navigation, labels, icons
   hooks/           useDictation, useElevenLabsVoice, useVoiceNavigation
   i18n/            lingua dell'interfaccia: it.ts (riferimento), en.ts, stato e cambio lingua in index.ts
   styles.css       design system dell'app (variabili CSS, vetro, tema chiaro/scuro)
   markers.css      marker della mappa, condivisi tra app e landing
   landing/         landing page (/landing/, landing/index.html): hero con mappa, demo dei percorsi, testi in copy.it.ts e copy.en.ts
-tests/             Vitest (166 test), senza rete: i servizi esterni sono simulati
-scripts/           fetch-osm (snapshot), check-gemma (prova dal vivo dell'AI)
+tests/             Vitest (205 test), senza rete: i servizi esterni sono simulati
+scripts/           build-osm (dati della Toscana), download-osm (dati già pronti), build-region (confine), fetch-osm (snapshot demo), check-gemma (prova dal vivo dell'AI)
 cloud/             edizione pubblicata (Cloudflare Workers + D1): app separata, vedi cloud/README.md
 ```
 
@@ -102,6 +106,7 @@ sequenceDiagram
   participant S as Server (routing.ts + safety.ts)
   participant V as Valhalla
   B->>S: POST /api/route {from, to}
+  S->>S: partenza e arrivo in Toscana (shared/area.ts) e a non più di 10 km in linea d'aria, altrimenti 400
   S->>S: segnalazioni "da evitare" non risolte nella zona → aree escluse (5 m attorno al punto agganciato)
   S->>V: /route pedestrian/wheelchair, alternates=2, language it-IT, exclude_polygons
   V-->>S: fino a 3 percorsi con istruzioni
@@ -112,6 +117,7 @@ sequenceDiagram
   S->>S: scarta strade principali senza marciapiede e scale; preferisce meno carreggiata (max 2 m di deviazione per metro evitato)
   S->>S: verifica sulla geometria che le segnalazioni escluse siano a più di 3 m
   S-->>B: RouteResult {coords, distanza, durata, safety, maneuvers, avoidedBlocking, avoidFailed, notice}
+  B->>S: GET /api/osm/14/x/y.json per le sole celle attraversate dal percorso
   B->>B: analysis.ts confronta il percorso con i dati OSM e le segnalazioni → punti di attenzione numerati
   B->>S: POST /api/route {profile: foot} (in parallelo, solo per il confronto)
 ```
@@ -180,7 +186,29 @@ flowchart LR
 
 ## Dati OpenStreetMap
 
-`scripts/fetch-osm.ts` interroga Overpass una volta sull'area demo e salva `server/data/osm-pisa.json`. `server/osm.ts` traduce i tag in un modello unico:
+I dati coprono tutta la Toscana (ISO3166-2 `IT-52`). `npm run osm:build` (`scripts/build-osm.ts`) li costruisce così:
+
+1. scarica l'estratto Geofabrik "Italia centrale" (390 MB; Geofabrik non pubblica la sola Toscana, e Overpass a questa scala risponde con errori e timeout);
+2. `osmium tags-filter` tiene gli stessi oggetti della vecchia query Overpass (way pedonali, way con `sidewalk`, nodi `kerb`/`crossing`/`barrier`, tutto ciò che ha `wheelchair`);
+3. `osmium extract` ritaglia sul confine regionale, preso dalla relazione `ISO3166-2=IT-52` dello stesso file;
+4. `osmium export` → `normalizeOverpass` (stessa classificazione di prima) → griglia.
+
+**Griglia.** Gli elementi sono divisi in celle: le tile "slippy map" di livello 14, circa 1,8 km di lato (`shared/tiles.ts`). Ogni cella è un file `osm-tiles/14/<x>/<y>.json`; `index.json` elenca le celle e quanti elementi utili contiene ognuna. Le celle non contengono etichette (si ricalcolano dai tag nella lingua scelta), né fonte o nome (sono nei tag); le coordinate hanno 6 decimali. Una linea a cavallo di più celle è salvata intera in ognuna e il browser scarta i doppioni. Numeri del 16/11/2026: 155.409 elementi, 5.691 celle, 55 MB in tutto; cella mediana 3 kB, la più grande (centro di Firenze) 950 kB, 117 kB compressa.
+
+**Chi serve le celle.** In sviluppo e con `npm start` il server (`/api/osm/index.json`, `/api/osm/14/x/y.json`, compresse con gzip); nel build per GitHub Pages sono file statici in `data/osm/`. Il browser (`src/lib/osmTiles.ts`) scarica le celle della zona guardata da zoom 16 in su, e quelle attraversate dal percorso (non tutto il suo riquadro); ne tiene in memoria al massimo 80. Non esiste una richiesta che restituisca l'intera regione.
+
+**Dove stanno i file.** Non nel repository: `server/data/osm-tiles/` è ignorata da git. Il workflow `.github/workflows/osm-data.yml` esegue `npm run osm:build` ogni lunedì e pubblica l'archivio come allegato della release `osm-data`; `npm run osm:download` lo scarica (lo fa anche il workflow di Pages prima del build). Se la cartella manca, `ensureTiles` la crea dallo snapshot demo `server/data/osm-pisa.json` (Overpass, zona universitaria di Pisa, `npm run fetch:osm`): l'app parte comunque e la legenda dice che i dati sono solo quelli di Pisa.
+
+**Sentieri.** In Toscana 48.700 `highway=path` su 50.500 sono sentieri di campagna o di montagna. La regola (`isTrail` in `shared/osmClassify.ts`): un `path` è un sentiero se non ha il tag `wheelchair` e ha un tag da escursionismo (`sac_scale`, `trail_visibility`, `mtb:scale`) oppure nessun indizio urbano (fondo pavimentato, `foot`/`bicycle=designated`, `segregated`, `lit=yes`). I 16.900 sentieri che hanno un'informazione classificabile restano nelle celle con `trail: true`: non vengono disegnati e non contano nella quantità di dati di una zona, ma se il percorso calcolato ne usa uno l'avviso compare ("Sterrato", "Pendenza sconosciuta").
+
+**Quanti dati ci sono.** Fuori dai centri delle città i dati sull'accessibilità sono pochi: 1.300 celle su 5.700 non hanno nessun elemento utile, solo 300 ne hanno più di 50. L'app lo mostra in tre modi, senza mai dire che una zona o un percorso è accessibile:
+- sulla mappa (`CoverageLayer.tsx`) un tratteggio fitto dove non ci sono dati, rado dove sono pochi (fino a 49 elementi per cella), niente dove sono di più; fuori dalla Toscana un velo uniforme e il confine tratteggiato;
+- una riga di testo sotto la mappa dice quanti elementi ci sono nella zona guardata e che nessuno li ha controllati;
+- l'esito di un percorso avvisa quando si conosce il fondo per meno del 25% del tragitto (`LOW_COVERAGE` in `src/lib/verdict.ts`): "nessun ostacolo noto" lì vuol dire soprattutto "nessun dato".
+
+**Area.** `inTuscany()` (`shared/area.ts`) controlla che un punto sia dentro il confine semplificato (`shared/region.ts`: 9 contorni, 820 punti, tolleranza 300 m) o entro 1 km da esso. Vale per partenza e arrivo, segnalazioni, posizione GPS e risultati della ricerca; Nominatim e i limiti della mappa usano il riquadro che contiene la regione.
+
+`server/osm.ts` traduce i tag in un modello unico:
 
 | Certezza | Esempi di tag | Uso |
 |---|---|---|
@@ -197,6 +225,6 @@ L'accessibilità dei luoghi (`wheelchair=*` su negozi ed edifici) è un livello 
 
 ## Test e verifica
 
-- `npm test`: 136 test Vitest senza rete (servizi esterni simulati). Coprono classificazione OSM, analisi del percorso, routing sicuro e i 7 scenari di ricalcolo, regole, AI e fallback, voce, API.
+- `npm test`: 205 test Vitest senza rete (servizi esterni simulati). Coprono classificazione OSM, griglia e sentieri, confine regionale, analisi del percorso, routing sicuro e i 7 scenari di ricalcolo, regole, AI e fallback, voce, API.
 - Prove dal vivo (non automatizzate nel repository): `npm run check:ai` per Gemma; script Playwright con microfono simulato per dettatura e guida vocale; i cinque percorsi demo del README.
 - Edizione `cloud/`: test propri (`cd cloud && npm test`), vedi `cloud/README.md`.

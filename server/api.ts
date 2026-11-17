@@ -1,9 +1,15 @@
 import { timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
+import { gzip } from 'node:zlib';
+import { promisify } from 'node:util';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { langFromHeader } from '../shared/lang.ts';
-import { inPisa, PISA_BOUNDS, type GeocodeResult, type ServerStatus } from '../shared/types.ts';
+import { inTuscany, REGION_BOUNDS, straightDistanceM } from '../shared/area.ts';
+import { RULES } from '../shared/rules.ts';
+import { TILE_ZOOM } from '../shared/tiles.ts';
+import type { GeocodeResult, ServerStatus } from '../shared/types.ts';
 import { aiProvider } from './ai.ts';
 import { HttpError, USER_AGENT, type Env } from './errors.ts';
 import { currentLang, m, withLang } from './messages.ts';
@@ -14,11 +20,16 @@ import { synthesizeSpeech, transcribeAudio, voiceStatus } from './voice.ts';
 export interface ApiOptions {
   env: Env;
   reportsFile: string;
-  osmFile: string;
+  /** Cartella della griglia dei dati OSM (index.json e una cella per file), vedi server/tiles.ts */
+  osmDir: string;
 }
 
+const gzipAsync = promisify(gzip);
+// Una cella della griglia: /api/osm/<zoom>/<x>/<y>.json. Solo numeri: il percorso del file non si costruisce mai da testo libero.
+const TILE_PATH = new RegExp(`^/api/osm/${TILE_ZOOM}/(\\d{1,6})/(\\d{1,6})\\.json$`);
+
 /** Restituisce un handler che gestisce /api/* e risponde false per tutto il resto. */
-export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
+export function createApi({ env, reportsFile, osmDir }: ApiOptions) {
   const reports = createReportStore(reportsFile);
   const geocodeCache = new Map<string, GeocodeResult[]>();
   let lastNominatim = 0;
@@ -34,16 +45,18 @@ export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
     const wait = lastNominatim + 1000 - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     lastNominatim = Date.now();
-    const [s, w, n, e] = PISA_BOUNDS;
+    // Nominatim accetta solo un riquadro: i risultati fuori dal confine regionale si scartano dopo.
+    const [s, w, n, e] = REGION_BOUNDS;
     const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-      q, format: 'jsonv2', limit: '5', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': lang,
+      q, format: 'jsonv2', limit: '8', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': lang,
     })}`;
     const down = m().geocodeDown;
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(10_000) })
       .catch(() => { throw new HttpError(503, down); });
     if (!res.ok) throw new HttpError(503, down);
     const json = await res.json() as { display_name: string; lat: string; lon: string }[];
-    const results = json.map((r) => ({ label: r.display_name, lat: Number(r.lat), lng: Number(r.lon) }));
+    const results = json.map((r) => ({ label: r.display_name, lat: Number(r.lat), lng: Number(r.lon) }))
+      .filter((r) => inTuscany(r.lat, r.lng)).slice(0, 5);
     geocodeCache.set(key, results);
     return results;
   }
@@ -82,9 +95,17 @@ export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
         res.end(Buffer.from(audio));
         return true;
       }
-      if (method === 'GET' && path === '/api/osm') {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=300' });
-        res.end(await readFile(osmFile));
+      // Dati OSM: l'indice delle celle e le singole celle, mai l'intera regione in una risposta.
+      const tile = TILE_PATH.exec(path);
+      if (method === 'GET' && (path === '/api/osm/index.json' || tile)) {
+        const file = tile ? join(osmDir, String(TILE_ZOOM), tile[1], `${tile[2]}.json`) : join(osmDir, 'index.json');
+        const data = await readFile(file).catch(() => { throw new HttpError(404, m().notFound); });
+        const zip = /\bgzip\b/.test(String(req.headers['accept-encoding'] ?? ''));
+        res.writeHead(200, {
+          'Content-Type': 'application/json', 'Cache-Control': 'max-age=300', Vary: 'Accept-Encoding',
+          ...(zip ? { 'Content-Encoding': 'gzip' } : {}),
+        });
+        res.end(zip ? await gzipAsync(data) : data);
         return true;
       }
       if (method === 'GET' && path === '/api/reports') return send(res, 200, await reports.all());
@@ -109,11 +130,13 @@ export function createApi({ env, reportsFile, osmFile }: ApiOptions) {
         const { from, to, profile = 'wheelchair' } = (await body(req) ?? {}) as {
           from?: { lat?: unknown; lng?: unknown }; to?: { lat?: unknown; lng?: unknown }; profile?: unknown;
         };
-        if (!from || !to || !inPisa(from.lat, from.lng) || !inPisa(to.lat, to.lng)) {
+        if (!from || !to || !inTuscany(from.lat, from.lng) || !inTuscany(to.lat, to.lng)) {
           throw new HttpError(400, m().routeOutside);
         }
         if (profile !== 'wheelchair' && profile !== 'foot') throw new HttpError(400, m().badProfile);
         const [a, b] = [from as { lat: number; lng: number }, to as { lat: number; lng: number }];
+        // Limite controllato prima di chiamare i servizi di routing: una richiesta troppo lunga non parte nemmeno.
+        if (straightDistanceM(a, b) > RULES.MAX_ROUTE_M) throw new HttpError(400, m().routeTooLong(RULES.MAX_ROUTE_M / 1000));
         if (profile === 'foot') return send(res, 200, await getFootRoute(a, b));
         // Segnalazioni da evitare (regole in shared/rules.ts) non risolte, nella zona del percorso (riquadro allargato di ~1 km).
         const pad = 0.01;

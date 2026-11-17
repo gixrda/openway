@@ -1,8 +1,11 @@
 import gsap from 'gsap';
 import L from 'leaflet';
-import { useEffect, useRef, type Ref, type RefObject } from 'react';
-import { MapContainer, Marker, Polyline, TileLayer } from 'react-leaflet';
-import { PISA_BOUNDS, type LatLngTuple, type OsmFeature, type Report, type RouteResult } from '../../shared/types.ts';
+import { useEffect, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
+import { MapContainer, Marker, Polyline, TileLayer, useMapEvents } from 'react-leaflet';
+import { REGION_BOUNDS } from '../../shared/area.ts';
+import type { LatLngTuple, OsmFeature, Report, RouteResult } from '../../shared/types.ts';
+import { CoverageLayer } from '../components/CoverageLayer.tsx';
+import { useOsmIndex, useViewFeatures, type Bounds } from '../lib/osmTiles.ts';
 import type { RouteAlert } from '../lib/alerts.ts';
 import { iconSvg, type IconName } from '../lib/icons.ts';
 import { LivingLine } from './LivingLine.tsx';
@@ -77,13 +80,31 @@ interface Props {
   living?: { branches: LatLngTuple[][]; playing: boolean; at?: number };
 }
 
+/** Comunica la zona guardata: chi esplora la mappa fuori dai tragitti demo riceve le celle di quella zona. */
+function ViewWatcher({ onView }: { onView: (v: { bounds: Bounds; zoom: number }) => void }) {
+  const report = () => {
+    const b = map.getBounds();
+    onView({ bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()], zoom: map.getZoom() });
+  };
+  const map = useMapEvents({ moveend: report });
+  useEffect(report, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 export function LandingMap({ mapRef, label, className, features, reports, route, alerts, destination, zoom = 16, living }: Props) {
   const line = useRef<L.Polyline>(null);
   const s = useT();
   const copy = useCopy();
   useRouteDraw(line, route);
-  const [ps, pw, pn, pe] = PISA_BOUNDS;
-  const known = features.filter((f) => f.certainty === 'known_obstacle' && f.scope === 'path');
+  const [rs, rw, rn, re] = REGION_BOUNDS;
+  const [view, setView] = useState<{ bounds: Bounds; zoom: number } | null>(null);
+  const index = useOsmIndex();
+  const viewFeatures = useViewFeatures(view);
+  // Ostacoli noti dei tragitti demo più quelli della zona guardata, senza doppioni.
+  const known = useMemo(() => {
+    const seen = new Set<string>();
+    return [...features, ...viewFeatures].filter((f) => f.certainty === 'known_obstacle' && f.scope === 'path' && !seen.has(f.id) && seen.add(f.id));
+  }, [features, viewFeatures]);
   const ends = route?.coords.length ? [route.coords[0], route.coords[route.coords.length - 1]] : null;
 
   return (
@@ -91,9 +112,9 @@ export function LandingMap({ mapRef, label, className, features, reports, route,
       ref={mapRef}
       center={PISA_CENTER}
       zoom={zoom}
-      minZoom={13}
+      minZoom={9}
       maxZoom={19}
-      maxBounds={[[ps, pw], [pn, pe]]}
+      maxBounds={[[rs - 0.4, rw - 0.4], [rn + 0.4, re + 0.4]]}
       zoomControl={false}
       scrollWheelZoom={false}
       className={`ow-map${className ? ` ${className}` : ''}`}
@@ -105,6 +126,8 @@ export function LandingMap({ mapRef, label, className, features, reports, route,
         maxZoom={19}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
+      <ViewWatcher onView={setView} />
+      {index && <CoverageLayer index={index} dark={false} />}
       {known.map((f) => f.geometry.type === 'line' ? (
         <Polyline key={f.id} positions={f.geometry.coords} interactive={false} pathOptions={{ color: '#B54800', weight: 5, opacity: 0.9 }} />
       ) : (

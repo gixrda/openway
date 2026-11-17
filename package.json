@@ -10,8 +10,12 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "fetch:osm": "node scripts/fetch-osm.ts",
+    "osm:build": "node scripts/build-osm.ts",
+    "osm:download": "node scripts/download-osm.ts",
+    "osm:region": "node scripts/build-region.ts",
     "check:ai": "node --env-file-if-exists=.env scripts/check-gemma.ts",
     "build:pages": "vite build --mode static",
+    "preview:pages": "vite preview --mode static",
     "record:routes": "node scripts/record-routes.ts"
   },
   "dependencies": {

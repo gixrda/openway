@@ -12,7 +12,7 @@ export const it = {
   locale: 'it-IT',
   decimal: ',',
   meta: {
-    description: 'OpenWay, freedom to move: percorsi e ostacoli per la mobilità in sedia a rotelle a Pisa.',
+    description: 'OpenWay, freedom to move: percorsi e ostacoli per la mobilità in sedia a rotelle in Toscana.',
   },
   language: {
     /** Nome della lingua a cui si passa premendo il bottone */
@@ -45,7 +45,8 @@ export const it = {
     loadOsmError: 'Non riusciamo a caricare gli ostacoli conosciuti: la mappa funziona, ma non li vedrai. Ricarica la pagina tra poco.',
     loadReportsError: 'Non riusciamo a caricare le segnalazioni degli utenti. Ricarica la pagina tra poco.',
     geoUnsupported: 'Questo browser non può dirci dove sei. Scegli il punto sulla mappa.',
-    geoOutside: 'Sembri fuori da Pisa: per ora OpenWay funziona solo qui. Scegli il punto sulla mappa.',
+    geoOutside: 'Sembri fuori dalla Toscana: per ora OpenWay funziona solo qui. Scegli il punto sulla mappa.',
+    routeTooLong: (km: number) => `Partenza e arrivo sono troppo lontani: calcoliamo percorsi fino a ${km} km in linea d'aria.`,
     geoDenied: 'Non possiamo vedere dove sei perché il permesso è stato negato. Scegli il punto sulla mappa.',
     geoFailed: 'Non riusciamo a trovare la tua posizione. Scegli il punto sulla mappa.',
     chooseEndpoints: 'Scegli partenza e arrivo.',
@@ -53,7 +54,7 @@ export const it = {
     panelLabel: 'Pannello OpenWay',
     collapse: 'Riduci pannello',
     expand: 'Espandi pannello',
-    place: 'Freedom to move · Pisa',
+    place: 'Freedom to move · Toscana',
     sections: 'Sezioni',
     tabRoute: 'Percorso',
     tabReport: 'Segnala un ostacolo',
@@ -69,10 +70,10 @@ export const it = {
       caution: { title: 'Il percorso non cambia', text: 'La segnalazione è sulla mappa ma non blocca il passaggio.' },
     },
     closeMessage: 'Chiudi il messaggio',
-    notFound: 'Non abbiamo trovato questo indirizzo a Pisa. Prova a scriverlo in un altro modo o scegli il punto sulla mappa.',
+    notFound: 'Non abbiamo trovato questo indirizzo in Toscana. Prova ad aggiungere la città o scegli il punto sulla mappa.',
     remove: (label: string) => `Rimuovi ${label.toLowerCase()}`,
     change: 'Cambia',
-    placeholder: 'Via, piazza o luogo a Pisa',
+    placeholder: 'Via o luogo e città, es. Via Roma, Lucca',
     searching: 'Cerco…',
     search: 'Cerca',
     dictate: (label: string) => `Detta ${label.toLowerCase()}`,
@@ -121,6 +122,7 @@ export const it = {
     listedBelow: 'Li trovi qui sotto e numerati sulla mappa.',
     noKnown: 'Nessun ostacolo noto',
     onlySidewalks: 'Secondo i dati della mappa passa solo su marciapiedi e zone pedonali.',
+    fewData: (percent: number) => `Qui la mappa ha pochi dati: sappiamo com'è il fondo solo per il ${percent}% del percorso. Possono esserci ostacoli non segnati.`,
   },
   alerts: {
     plain: {
@@ -237,7 +239,7 @@ export const it = {
     label: "Dettagli dell'elemento selezionato",
   },
   map: {
-    label: 'Mappa di Pisa con ostacoli e segnalazioni',
+    label: 'Mappa della Toscana con ostacoli e segnalazioni',
     zoomIn: 'Avvicina',
     zoomOut: 'Allontana',
     notPassable: ', non si passa',
@@ -258,8 +260,15 @@ export const it = {
     legendToCheck: 'da controllare',
     legendChecked: 'controllata sul posto',
     legendBlocks: 'blocca il passaggio',
+    legendNoData: "tratteggio fitto: nessun dato sull'accessibilità",
+    legendFewData: 'tratteggio rado: pochi dati',
     legendNote: (date: string | null) =>
-      `Le difficoltà minori compaiono avvicinando la mappa. Il riquadro tratteggiato è la zona coperta dai dati${date ? `, aggiornati al ${date}` : ''}.`,
+      `Gli ostacoli compaiono avvicinando la mappa, le difficoltà minori avvicinandola ancora. Dove non c'è tratteggio i dati sono di più, non completi${date ? `. Dati OpenStreetMap del ${date}` : ''}.`,
+    legendDemoOnly: 'Su questo server sono caricati solo i dati della zona universitaria di Pisa.',
+    dataZoomIn: 'Avvicina la mappa per vedere gli ostacoli. Dove vedi il tratteggio, OpenStreetMap ha pochi dati o nessuno.',
+    dataNone: "Qui OpenStreetMap non ha dati sull'accessibilità: possono esserci ostacoli che la mappa non mostra.",
+    dataFew: (n: number) => `Pochi dati in questa zona (${plural(n, 'elemento', 'elementi')}): possono esserci ostacoli che la mappa non mostra.`,
+    dataSome: (n: number) => `${n} elementi OpenStreetMap in questa zona. Nessuno li ha controllati di persona.`,
   },
   nav: {
     title: 'Guida vocale',

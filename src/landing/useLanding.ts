@@ -4,15 +4,19 @@ import { api } from '../api.ts';
 import { routeAlerts, type RouteAlert } from '../lib/alerts.ts';
 import { useLang } from '../i18n/index.ts';
 import { analyzeRoute } from '../lib/analysis.ts';
-import { getCopy } from './copy.ts';
-import { STATIC, staticOsm, staticRoutes } from './staticData.ts';
+import { useRouteFeatures } from '../lib/osmTiles.ts';
+import { getCopy, SCENARIOS } from './copy.ts';
+import { STATIC, staticRoutes } from './staticData.ts';
 
-/** Ostacoli OSM e segnalazioni, caricati una volta per tutta la pagina. Se mancano, la mappa resta usabile. */
+// I tragitti demo stanno tutti nella zona universitaria di Pisa: bastano le celle che attraversano.
+const DEMO_LINES = SCENARIOS.map((s) => [s.from, s.to]);
+const NO_FEATURES: OsmFeature[] = [];
+
+/** Ostacoli OSM dei tragitti demo e segnalazioni, caricati una volta per tutta la pagina. Se mancano, la mappa resta usabile. */
 export function useMapData() {
-  const [features, setFeatures] = useState<OsmFeature[]>([]);
+  const features = useRouteFeatures(DEMO_LINES) ?? NO_FEATURES;
   const [reports, setReports] = useState<Report[]>([]);
   useEffect(() => {
-    (STATIC ? staticOsm() : api.osm()).then((d) => setFeatures(d.features)).catch(() => setFeatures([]));
     if (!STATIC) api.reports().then(setReports).catch(() => setReports([])); // le segnalazioni vivono sul server
   }, []);
   return { features, reports };

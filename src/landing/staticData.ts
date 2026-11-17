@@ -1,7 +1,7 @@
 // Versione statica della landing (GitHub Pages): niente server, quindi niente /api.
 // I percorsi registrati vengono serviti come file (come le celle dei dati OSM, vedi src/lib/osmTiles.ts);
 // la ricerca va direttamente a Nominatim.
-import { inTuscany, REGION_BOUNDS } from '../../shared/area.ts';
+import { inArea, REGION_BOUNDS } from '../../shared/area.ts';
 import type { GeocodeResult, RouteResult } from '../../shared/types.ts';
 import { getLang, t } from '../i18n/index.ts';
 import { getCopy } from './copy.ts';
@@ -35,7 +35,7 @@ export async function geocodeDirect(q: string): Promise<GeocodeResult[]> {
   last = Date.now();
   const [s, w, n, e] = REGION_BOUNDS; // riquadro per Nominatim; il confine vero si applica ai risultati
   const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-    q: q.trim().slice(0, 200), format: 'jsonv2', limit: '8', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': lang,
+    q: q.trim().slice(0, 200), format: 'jsonv2', limit: '8', viewbox: `${w},${n},${e},${s}`, bounded: '1', countrycodes: 'it,va', 'accept-language': lang,
   })}`;
   const res = await fetch(url, { referrerPolicy: 'strict-origin-when-cross-origin' }).catch(() => null);
   if (!res?.ok) throw new Error(getCopy().routeCard.searchDown);
@@ -44,7 +44,7 @@ export async function geocodeDirect(q: string): Promise<GeocodeResult[]> {
   const results = (Array.isArray(data) ? data : [])
     .filter((r) => typeof r.display_name === 'string' && Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lon)))
     .map((r) => ({ label: String(r.display_name).slice(0, 300), lat: Number(r.lat), lng: Number(r.lon) }))
-    .filter((r) => inTuscany(r.lat, r.lng)).slice(0, 5);
+    .filter((r) => inArea(r.lat, r.lng)).slice(0, 5);
   cache.set(key, results);
   return results;
 }

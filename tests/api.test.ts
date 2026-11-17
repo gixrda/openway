@@ -16,7 +16,7 @@ async function start(env: Env) {
   dir = await mkdtemp(join(tmpdir(), 'openway-'));
   // Griglia OSM minima: un indice e una sola cella.
   await mkdir(join(dir, 'osm', '14', '8665'), { recursive: true });
-  await writeFile(join(dir, 'osm', 'index.json'), JSON.stringify({ source: 'test', fetchedAt: '', scope: 'demo', zoom: 14, cells: { '8665/5975': 1 } }));
+  await writeFile(join(dir, 'osm', 'index.json'), JSON.stringify({ source: 'test', fetchedAt: '', scope: 'demo', zoom: 14, cols: { 8665: [[5975, 2]] } }));
   await writeFile(join(dir, 'osm', '14', '8665', '5975.json'), JSON.stringify({ features: [{ id: 'node/1' }] }));
   const api = createApi({ env, reportsFile: join(dir, 'reports.json'), osmDir: join(dir, 'osm') });
   server = createServer((req, res) => { api(req, res).then((h) => { if (!h) { res.statusCode = 404; res.end(); } }); });
@@ -56,7 +56,7 @@ describe('API senza credenziali', () => {
   });
 
   it("serve l'indice e le singole celle dei dati OSM, mai tutto insieme", async () => {
-    expect((await (await call('/api/osm/index.json')).json()).cells).toEqual({ '8665/5975': 1 });
+    expect((await (await call('/api/osm/index.json')).json()).cols).toEqual({ 8665: [[5975, 2]] });
     const cell = await call('/api/osm/14/8665/5975.json');
     expect(cell.status).toBe(200);
     expect((await cell.json()).features).toEqual([{ id: 'node/1' }]);
@@ -85,7 +85,7 @@ describe('API senza credenziali', () => {
   });
 
   it.each([
-    [{ lat: 45.4, lng: 9.19, description: 'gradino troppo alto' }, 400], // Milano
+    [{ lat: 43.7102, lng: 7.262, description: 'gradino troppo alto' }, 400], // Nizza: fuori dall'Italia
     [{ lat: 'x', lng: 10.4, description: 'gradino troppo alto' }, 400],
     [{ ...PISA, description: 'corto' }, 400],
     [{ ...PISA, description: 'x'.repeat(1001) }, 400],
@@ -229,16 +229,16 @@ describe('API senza credenziali', () => {
     expect((await post('/api/route', { from: PISA, to: PISA, profile: 'auto' })).status).toBe(400);
   });
 
-  it('rifiuta i percorsi fuori dalla Toscana o troppo lunghi senza chiamare i servizi di routing', async () => {
+  it('rifiuta i percorsi fuori dall\'Italia o troppo lunghi senza chiamare i servizi di routing', async () => {
     const calls: string[] = [];
     mockExternal((url) => { calls.push(url); return new Response('', { status: 503 }); });
     const LUCCA = { lat: 43.8429, lng: 10.5027 }; // ~16 km da Pisa in linea d'aria: oltre il limite di 10 km
     const far = await post('/api/route', { from: PISA, to: LUCCA });
     expect(far.status).toBe(400);
     expect((await far.json()).error).toMatch(/fino a 10 km/);
-    const outside = await post('/api/route', { from: PISA, to: { lat: 44.1025, lng: 9.824 } }); // La Spezia
+    const outside = await post('/api/route', { from: { lat: 43.7912, lng: 7.6076 }, to: { lat: 43.7102, lng: 7.262 } }); // Ventimiglia → Nizza
     expect(outside.status).toBe(400);
-    expect((await outside.json()).error).toBe('Partenza e arrivo devono essere in Toscana.');
+    expect((await outside.json()).error).toBe('Partenza e arrivo devono essere in Italia.');
     expect(calls).toEqual([]);
   });
 

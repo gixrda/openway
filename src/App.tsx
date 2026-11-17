@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { inTuscany, straightDistanceM } from '../shared/area.ts';
+import { inArea, straightDistanceM } from '../shared/area.ts';
 import { RULES } from '../shared/rules.ts';
 import { cellsInBounds, dataLevel, type OsmIndex } from '../shared/tiles.ts';
 import type { OsmFeature, Report, RouteResult, ServerStatus } from '../shared/types.ts';
@@ -20,7 +20,7 @@ type Tab = 'route' | 'report';
 
 function placeFromUrl(key: string): Place | null {
   const [lat, lng] = (new URLSearchParams(window.location.search).get(key) ?? '').split(',').map(Number);
-  return inTuscany(lat, lng) ? { lat, lng, label: t().app.linkPoint } : null;
+  return inArea(lat, lng) ? { lat, lng, label: t().app.linkPoint } : null;
 }
 
 /**
@@ -132,7 +132,7 @@ export default function App() {
       ({ coords }) => {
         setLocating(false);
         const p = { lat: coords.latitude, lng: coords.longitude };
-        if (!inTuscany(p.lat, p.lng)) { setGeoError(t().app.geoOutside); return; }
+        if (!inArea(p.lat, p.lng)) { setGeoError(t().app.geoOutside); return; }
         setUserPos(p);
         setFocus({ coords: [[p.lat, p.lng]], nonce: Date.now() });
         if (target === 'from') changeFrom({ ...p, label: t().common.myPosition });

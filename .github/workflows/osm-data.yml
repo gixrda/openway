@@ -1,5 +1,5 @@
-# Costruisce la griglia dei dati OpenStreetMap della Toscana (npm run osm:build) e la pubblica come allegato
-# della release "osm-data": i file sono troppo grandi per stare nel repository (~55 MB, ~5.700 celle).
+# Costruisce la griglia dei dati OpenStreetMap di tutta l'Italia (npm run osm:build) e la pubblica come allegato
+# della release "osm-data": i file sono troppo grandi per stare nel repository (~690 MB, ~64.000 celle; ~125 MB compressi).
 # La landing su GitHub Pages e chi sviluppa li scaricano con `npm run osm:download`.
 # Azioni bloccate su commit SHA; solo questo job può scrivere, e solo per aggiornare la release.
 name: Dati OSM
@@ -39,6 +39,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release view osm-data >/dev/null 2>&1 || gh release create osm-data --latest=false \
-            --title "Dati OpenStreetMap (Toscana)" \
+            --title "Dati OpenStreetMap (Italia)" \
             --notes "Griglia dei dati OSM usata da OpenWay, rigenerata ogni settimana da .github/workflows/osm-data.yml. © OpenStreetMap contributors, ODbL."
           gh release upload osm-data osm-tiles.tar.gz --clobber

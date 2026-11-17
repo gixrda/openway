@@ -1,15 +1,15 @@
 import L from 'leaflet';
 import { useEffect } from 'react';
-import { Polyline, useMap } from 'react-leaflet';
-import { inTuscany, REGION_RINGS } from '../../shared/area.ts';
+import { useMap } from 'react-leaflet';
+import { inArea } from '../../shared/area.ts';
 import { dataLevel, TILE_ZOOM, type OsmIndex } from '../../shared/tiles.ts';
 
 // Tratteggio per livello di dati: [passo in px, opacità delle linee, opacità del velo]. Il passo divide 256,
-// così il disegno continua senza salti da una tile all'altra. Fuori regione: solo un velo uniforme.
+// così il disegno continua senza salti da una tile all'altra. Fuori dall'Italia: solo un velo uniforme.
 const STYLE = { none: [8, 0.34, 0.07], few: [16, 0.22, 0.03], out: [0, 0, 0.22] } as const;
 
 const outside = new Map<string, boolean>();
-/** Una cella senza file è "fuori regione" se il suo centro non è in Toscana (risultato in cache: il confine non cambia). */
+/** Una cella senza file è "fuori area" se il suo centro non è in Italia (risultato in cache: il confine non cambia). */
 function isOutside(x: number, y: number): boolean {
   const key = `${x}/${y}`;
   let out = outside.get(key);
@@ -17,7 +17,7 @@ function isOutside(x: number, y: number): boolean {
     const n = 2 ** TILE_ZOOM;
     const lng = ((x + 0.5) / n) * 360 - 180;
     const lat = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 0.5)) / n))) * 180) / Math.PI;
-    out = !inTuscany(lat, lng);
+    out = !inArea(lat, lng);
     outside.set(key, out);
   }
   return out;
@@ -56,16 +56,26 @@ export function CoverageLayer({ index, dark }: { index: OsmIndex; dark: boolean 
         if (!ctx) return canvas;
         ctx.scale(ratio, ratio);
         // Sopra il livello 14 una tile sta dentro una sola cella; sotto ne contiene 4, 16, 64… per lato.
+        // Da lontano (tutta l'Italia in vista) le celle sarebbero più piccole di un pixel: si disegnano blocchi
+        // di celle di almeno 4 px, con il livello della media dei loro dati.
         const shift = TILE_ZOOM - coords.z;
-        const per = shift > 0 ? 2 ** shift : 1;
+        const block = 2 ** Math.max(0, shift - 6); // celle per lato di un blocco
+        const per = shift > 0 ? 2 ** shift / block : 1; // blocchi per lato della tile
         const px = size.x / per;
         const patterns = { none: hatch(ctx, STYLE.none[0], ink, STYLE.none[1]), few: hatch(ctx, STYLE.few[0], ink, STYLE.few[1]) };
         for (let i = 0; i < per; i++) {
           for (let j = 0; j < per; j++) {
-            const x = shift > 0 ? coords.x * per + i : coords.x >> -shift;
-            const y = shift > 0 ? coords.y * per + j : coords.y >> -shift;
-            const count = index.cells[`${x}/${y}`];
-            const level = count === undefined && isOutside(x, y) ? 'out' : dataLevel(count);
+            const x = shift > 0 ? (coords.x * per + i) * block : coords.x >> -shift;
+            const y = shift > 0 ? (coords.y * per + j) * block : coords.y >> -shift;
+            let sum = 0, files = 0;
+            for (let dx = 0; dx < block; dx++) {
+              for (let dy = 0; dy < block; dy++) {
+                const count = index.cells[`${x + dx}/${y + dy}`];
+                if (count !== undefined) { files++; sum += count; }
+              }
+            }
+            const half = block >> 1;
+            const level = !files && isOutside(x + half, y + half) ? 'out' : dataLevel(sum && Math.ceil(sum / (block * block)));
             if (level === 'some') continue;
             ctx.globalAlpha = STYLE[level][2];
             ctx.fillStyle = ink;
@@ -86,13 +96,5 @@ export function CoverageLayer({ index, dark }: { index: OsmIndex; dark: boolean 
     return () => { layer.remove(); };
   }, [map, index, dark]);
 
-  // Confine della regione: l'area in cui OpenWay calcola percorsi e accetta segnalazioni.
-  return (
-    <>
-      {REGION_RINGS.map((ring, i) => (
-        <Polyline key={i} positions={[...ring, ring[0]]} interactive={false}
-          pathOptions={{ color: dark ? '#94a3b8' : '#475569', weight: 1.5, dashArray: '6 6', opacity: 0.6, fill: false }} />
-      ))}
-    </>
-  );
+  return null;
 }

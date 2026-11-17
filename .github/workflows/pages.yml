@@ -33,7 +33,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm test
-      # Dati di tutta la Toscana dalla release "osm-data". Se mancano, il build usa lo snapshot demo di Pisa e lo segnala.
+      # Dati di tutta l'Italia dalla release "osm-data". Se mancano, il build usa lo snapshot demo di Pisa e lo segnala.
       - run: npm run osm:download || echo "::warning::Dati OSM regionali non disponibili - la landing usa lo snapshot demo di Pisa"
       - run: npm run build:pages
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

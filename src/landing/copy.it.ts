@@ -9,7 +9,7 @@ export const it = {
   locale: 'it-IT',
   meta: {
     payoff: 'Freedom to move.',
-    description: 'OpenWay, freedom to move: percorsi per sedia a rotelle in Toscana confrontati con i dati di OpenStreetMap e con le segnalazioni degli utenti.',
+    description: 'OpenWay, freedom to move: percorsi per sedia a rotelle in Italia confrontati con i dati di OpenStreetMap e con le segnalazioni degli utenti.',
   },
   nav: {
     label: 'Navigazione principale',
@@ -27,19 +27,19 @@ export const it = {
   hero: {
     title: 'La città è tua da esplorare.',
     lead: 'Scopri i percorsi, consulta le informazioni sulle barriere e contribuisci a rendere la mobilità urbana più consapevole.',
-    searchLabel: 'Dove vuoi andare in Toscana?',
+    searchLabel: 'Dove vuoi andare in Italia?',
     searchPlaceholder: 'Via, piazza o luogo',
     searchButton: 'Cerca',
     searching: 'Cerco…',
     tooShort: 'Scrivi almeno 3 lettere per cercare.',
-    noResults: (q: string) => `Nessun luogo trovato in Toscana per «${q}». Prova con il nome della via e della città.`,
+    noResults: (q: string) => `Nessun luogo trovato in Italia per «${q}». Prova con il nome della via e della città.`,
     resultsLabel: 'Luoghi trovati',
     openRoute: 'Calcola il percorso fin qui',
     primary: 'Esplora la mappa',
     secondary: 'Scopri come funziona',
     exploring: 'Trascina la mappa, usa la rotella o i tasti freccia per spostarti.',
     exitExplore: 'Torna alla presentazione',
-    mapLabel: 'Mappa interattiva della Toscana, aperta sul centro di Pisa',
+    mapLabel: 'Mappa interattiva d’Italia, aperta sul centro di Pisa',
   },
   routeCard: {
     title: 'Percorso di esempio',
@@ -98,18 +98,18 @@ export const it = {
       },
       {
         title: 'I dati ci sono a metà',
-        text: 'In Toscana OpenStreetMap registra circa 10.900 ostacoli noti e 37.000 possibili difficoltà, quasi tutti nei centri delle città. Altrove molti marciapiedi non sono mappati, e di tanti attraversamenti non si sa se hanno lo scivolo.',
+        text: 'In Italia OpenStreetMap registra circa 159.000 ostacoli noti e 541.000 possibili difficoltà, quasi tutti nei centri delle città. Altrove molti marciapiedi non sono mappati, e di tanti attraversamenti non si sa se hanno lo scivolo.',
       },
       {
         title: 'Ogni tragitto nuovo è una prova',
         text: 'Senza informazioni affidabili si scopre la strada solo percorrendola, spesso con qualcuno accanto.',
       },
     ],
-    source: 'Fonte: dati OpenStreetMap del 16/11/2026, 155.409 elementi in tutta la Toscana.',
+    source: 'Fonte: dati OpenStreetMap del 16/11/2026, 2.078.357 elementi in tutta Italia.',
   },
   features: {
     title: 'Come funziona',
-    lead: 'Quattro cose che il prototipo fa oggi, in Toscana.',
+    lead: 'Quattro cose che il prototipo fa oggi, in tutta Italia.',
     uiNote: 'Elementi ricostruiti dall’interfaccia dell’app, con i suoi testi e i suoi stati. L’esempio di percorso è via Roma, con i dati OpenStreetMap del 24/10/2026.',
     ui: {
       layers: [
@@ -220,36 +220,36 @@ export const it = {
     card: {
       label: 'Scheda del progetto',
       name: 'OpenWay',
-      kind: 'Prototipo · Toscana',
+      kind: 'Prototipo · Italia',
       rows: [
         { label: 'Nato', value: 'Hacktoberfest GDG Pisa, 2026' },
         { label: 'Risultato', value: '2° miglior progetto open source' },
         { label: 'Nome precedente', value: 'AccessGo' },
-        { label: 'Copertura', value: 'Toscana, con dati disuguali' },
+        { label: 'Copertura', value: 'Italia, con dati disuguali' },
         { label: 'Stato dei percorsi', value: 'Non controllati sul posto' },
       ],
       repo: 'Codice su GitHub',
     },
-    figuresTitle: 'I dati della Toscana',
+    figuresTitle: 'I dati di tutta Italia',
     figuresNote: 'Dati OpenStreetMap del 16/11/2026. Sono gli elementi mappati, non una verifica sul posto.',
     figures: [
-      { value: 155409, label: 'elementi OpenStreetMap analizzati' },
-      { value: 10881, label: 'ostacoli noti' },
-      { value: 37051, label: 'possibili difficoltà' },
-      { value: 5213, label: 'elementi utili, come gli scivoli' },
+      { value: 2078357, label: 'elementi OpenStreetMap analizzati' },
+      { value: 158993, label: 'ostacoli noti' },
+      { value: 540616, label: 'possibili difficoltà' },
+      { value: 129844, label: 'elementi utili, come gli scivoli' },
     ],
     stackTitle: 'Dati e tecnologie',
     stack: [
       { icon: 'layers', name: 'OpenStreetMap', role: 'Ostacoli e marciapiedi, estratto Geofabrik del 16/11/2026' },
       { icon: 'route', name: 'Valhalla e OSRM', role: 'Percorsi e istruzioni di svolta, istanze FOSSGIS' },
-      { icon: 'search', name: 'Nominatim', role: 'Ricerca degli indirizzi in Toscana' },
+      { icon: 'search', name: 'Nominatim', role: 'Ricerca degli indirizzi in Italia' },
       { icon: 'report', name: 'Gemma 4', role: 'Lettura delle segnalazioni, con controllo lato server' },
       { icon: 'mic', name: 'ElevenLabs', role: 'Dettatura e guida vocale' },
       { icon: 'pin', name: 'React e Leaflet', role: 'Interfaccia e mappa' },
     ],
     limitsTitle: 'Cosa non fa ancora',
     limits: [
-      'Copre la Toscana, ma fuori dai centri delle città OpenStreetMap ha pochi dati: una mappa senza ostacoli non è una strada senza ostacoli.',
+      'Copre tutta l’Italia, ma fuori dai centri delle città OpenStreetMap ha pochi dati: una mappa senza ostacoli non è una strada senza ostacoli.',
       'Le segnalazioni restano da controllare finché un moderatore non le verifica.',
       'Usa servizi pubblici gratuiti, che possono essere lenti o non rispondere.',
       'La guida vocale è stata provata nel browser, non camminando con un telefono.',
@@ -258,7 +258,7 @@ export const it = {
   faq: {
     title: 'Domande frequenti',
     items: [
-      { q: 'Dove funziona?', a: 'In tutta la Toscana, per percorsi fino a 10 km. I tragitti di questa pagina sono a Pisa, dove il progetto è nato. Fuori dai centri delle città OpenStreetMap ha pochi dati sugli ostacoli: la mappa lo mostra con un tratteggio.' },
+      { q: 'Dove funziona?', a: 'In tutta Italia, per percorsi fino a 10 km. I tragitti di questa pagina sono a Pisa, dove il progetto è nato. Fuori dai centri delle città OpenStreetMap ha pochi dati sugli ostacoli: la mappa lo mostra con un tratteggio.' },
       { q: 'Il percorso è garantito senza barriere?', a: 'No. OpenWay mostra ciò che i dati permettono di verificare: ostacoli noti, segnalazioni e tratti senza informazioni. L’assenza di ostacoli noti non è una garanzia e nessun percorso è stato controllato di persona.' },
       { q: 'Chi controlla le segnalazioni?', a: 'Ogni segnalazione nasce «da controllare». Solo un moderatore può segnarla come controllata sul posto o come risolta. Una segnalazione risolta non viene più evitata dai percorsi.' },
       { q: 'Che cosa fa l’intelligenza artificiale?', a: 'Gemma legge la descrizione di una segnalazione, propone tipo e gravità e fa una domanda mirata. Chi segnala conferma o corregge. L’AI non decide mai che un ostacolo è verificato.' },
@@ -273,7 +273,7 @@ export const it = {
     secondary: 'Guarda il codice',
   },
   footer: {
-    about: 'Prototipo per orientarsi in sedia a rotelle in Toscana.',
+    about: 'Prototipo per orientarsi in sedia a rotelle in Italia.',
     productTitle: 'Prodotto',
     projectTitle: 'Progetto',
     app: STATIC ? 'Come provarla' : 'Apri la mappa',

@@ -1,6 +1,6 @@
 // Griglia dei dati OpenStreetMap: i dati sono divisi in celle, una per file, così il browser scarica
-// solo quelle che servono (la zona guardata e le celle attraversate dal percorso), mai l'intera regione.
-// Le celle sono le tile "slippy map" standard al livello 14: circa 1,8 km di lato alla latitudine della Toscana.
+// solo quelle che servono (la zona guardata e le celle attraversate dal percorso), mai l'intero Paese.
+// Le celle sono le tile "slippy map" standard al livello 14: da 1,6 km (Alpi) a 2 km (Sicilia) di lato.
 import type { LatLngTuple, OsmFeature } from './types.ts';
 
 export const TILE_ZOOM = 14;
@@ -20,10 +20,49 @@ export interface OsmIndex {
   source: string;
   /** Data dei dati OpenStreetMap (non della generazione dei file) */
   fetchedAt: string;
-  /** region = tutta la regione; demo = solo lo snapshot della zona universitaria di Pisa incluso nel repository */
-  scope: 'region' | 'demo';
+  /** full = tutta l'Italia; demo = solo lo snapshot della zona universitaria di Pisa incluso nel repository */
+  scope: 'full' | 'demo';
   zoom: number;
   cells: Record<string, number>;
+}
+
+/**
+ * L'indice come sta nel file: con ~90.000 celle l'elenco "x/y": n peserebbe più di 1 MB.
+ * Per ogni colonna x ci sono uno o più tratti [y iniziale, v, v, v…], dove v = n + 1 e 0 = cella senza file.
+ */
+export interface OsmIndexFile extends Omit<OsmIndex, 'cells'> { cols: Record<string, number[][]> }
+
+const MAX_GAP = 3; // buchi più lunghi (mare, montagna senza dati) aprono un nuovo tratto
+
+export function encodeIndex({ cells, ...meta }: OsmIndex): OsmIndexFile {
+  const byX = new Map<string, [number, number][]>();
+  for (const [key, n] of Object.entries(cells)) {
+    const [x, y] = key.split('/');
+    const list = byX.get(x);
+    if (list) list.push([Number(y), n]); else byX.set(x, [[Number(y), n]]);
+  }
+  const cols: OsmIndexFile['cols'] = {};
+  for (const [x, list] of byX) {
+    list.sort((a, b) => a[0] - b[0]);
+    const runs: number[][] = [];
+    let last = -Infinity;
+    for (const [y, n] of list) {
+      if (y - last > MAX_GAP + 1) runs.push([y]);
+      else for (let gap = last + 1; gap < y; gap++) runs[runs.length - 1].push(0);
+      runs[runs.length - 1].push(n + 1);
+      last = y;
+    }
+    cols[x] = runs;
+  }
+  return { ...meta, cols };
+}
+
+export function decodeIndex({ cols, ...meta }: OsmIndexFile): OsmIndex {
+  const cells: Record<string, number> = {};
+  for (const [x, runs] of Object.entries(cols)) {
+    for (const [y0, ...values] of runs) values.forEach((v, i) => { if (v > 0) cells[`${x}/${y0 + i}`] = v - 1; });
+  }
+  return { ...meta, cells };
 }
 
 export const tileX = (lng: number): number => Math.min(N - 1, Math.max(0, Math.floor(((lng + 180) / 360) * N)));
@@ -71,7 +110,7 @@ export function cellsOfFeature(f: Pick<OsmFeature, 'geometry'>): string[] {
 /**
  * Quanti dati ha una cella (~3 km²), per dirlo a chi guarda la mappa:
  * none = nessun dato utile; few = da 1 a FEW_DATA_MAX elementi; some = di più.
- * In Toscana (16/11/2026) solo ~300 celle su ~5.700 superano la soglia: sono i centri delle città.
+ * Superano la soglia quasi solo i centri delle città (i numeri sono in ARCHITECTURE.md).
  * "some" non vuol dire che la zona è mappata bene, solo che l'assenza di un ostacolo sulla mappa pesa un po' di più.
  */
 export const FEW_DATA_MAX = 49;

@@ -132,7 +132,7 @@ const PAVED_SURFACES = new Set([
  * - non ha il tag `wheelchair` (un'informazione esplicita sull'accessibilità non si scarta mai), e
  * - ha un tag da escursionismo (`sac_scale`, `trail_visibility`, `mtb:scale`), oppure non ha nessun indizio urbano:
  *   fondo pavimentato, `foot`/`bicycle=designated`, `segregated`, `lit=yes`.
- * In Toscana sono sentieri circa 48.700 `path` su 50.500 (estratto Geofabrik del 16/11/2026).
+ * In Toscana lo sono 48.700 `path` su 50.500: quasi tutti (i numeri per l'Italia sono in ARCHITECTURE.md).
  * I sentieri non si disegnano sulla mappa e non contano nella quantità di dati di una zona;
  * restano però nei dati, così un percorso che ne usa uno riceve comunque l'avviso (es. "Sterrato").
  */

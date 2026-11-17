@@ -18,7 +18,7 @@ export const en: Copy = {
   locale: 'en-GB',
   meta: {
     payoff: 'Freedom to move.',
-    description: 'OpenWay, freedom to move: wheelchair routes in Tuscany compared with OpenStreetMap data and with user reports.',
+    description: 'OpenWay, freedom to move: wheelchair routes in Italy compared with OpenStreetMap data and with user reports.',
   },
   nav: {
     label: 'Main navigation',
@@ -36,19 +36,19 @@ export const en: Copy = {
   hero: {
     title: 'The city is yours to explore.',
     lead: 'Discover routes, check what is known about barriers and help make getting around the city better informed.',
-    searchLabel: 'Where do you want to go in Tuscany?',
+    searchLabel: 'Where do you want to go in Italy?',
     searchPlaceholder: 'Street, square or place',
     searchButton: 'Search',
     searching: 'Searching…',
     tooShort: 'Type at least 3 letters to search.',
-    noResults: (q: string) => `No place found in Tuscany for “${q}”. Try the name of the street and the town.`,
+    noResults: (q: string) => `No place found in Italy for “${q}”. Try the name of the street and the town.`,
     resultsLabel: 'Places found',
     openRoute: 'Calculate the route to here',
     primary: 'Explore the map',
     secondary: 'See how it works',
     exploring: 'Drag the map, or use the mouse wheel or the arrow keys to move around.',
     exitExplore: 'Back to the presentation',
-    mapLabel: 'Interactive map of Tuscany, opened on the centre of Pisa',
+    mapLabel: 'Interactive map of Italy, opened on the centre of Pisa',
   },
   routeCard: {
     title: 'Example route',
@@ -106,18 +106,18 @@ export const en: Copy = {
       },
       {
         title: 'The data is only half there',
-        text: 'In Tuscany, OpenStreetMap records about 10,900 known obstacles and 37,000 possible difficulties, nearly all of them in town centres. Elsewhere many sidewalks are not mapped, and for many crossings nobody knows whether there is a dropped kerb.',
+        text: 'In Italy, OpenStreetMap records about 159,000 known obstacles and 541,000 possible difficulties, nearly all of them in town centres. Elsewhere many sidewalks are not mapped, and for many crossings nobody knows whether there is a dropped kerb.',
       },
       {
         title: 'Every new trip is a test',
         text: 'Without reliable information you only find out about a street by travelling along it, often with someone beside you.',
       },
     ],
-    source: 'Source: OpenStreetMap data of 16 November 2026, 155,409 features across Tuscany.',
+    source: 'Source: OpenStreetMap data of 16 November 2026, 2,078,357 features across Italy.',
   },
   features: {
     title: 'How it works',
-    lead: 'Four things the prototype does today, in Tuscany.',
+    lead: 'Four things the prototype does today, in Italy.',
     uiNote: 'Elements rebuilt from the app interface, with its own wording and states. The example route is Via Roma, with OpenStreetMap data of 24 October 2026.',
     ui: {
       layers: [
@@ -222,36 +222,36 @@ export const en: Copy = {
     card: {
       label: 'Project card',
       name: 'OpenWay',
-      kind: 'Prototype · Tuscany',
+      kind: 'Prototype · Italy',
       rows: [
         { label: 'Born at', value: 'GDG Pisa Hacktoberfest, 2026' },
         { label: 'Result', value: '2nd best open-source project' },
         { label: 'Former name', value: 'AccessGo' },
-        { label: 'Coverage', value: 'Tuscany, with uneven data' },
+        { label: 'Coverage', value: 'Italy, with uneven data' },
         { label: 'Route status', value: 'Not checked on site' },
       ],
       repo: 'Code on GitHub',
     },
-    figuresTitle: 'The data for Tuscany',
+    figuresTitle: 'The data for Italy',
     figuresNote: 'OpenStreetMap data of 16 November 2026. These are mapped features, not an on-site check.',
     figures: [
-      { value: 155409, label: 'OpenStreetMap features analysed' },
-      { value: 10881, label: 'known obstacles' },
-      { value: 37051, label: 'possible difficulties' },
-      { value: 5213, label: 'helpful features, such as dropped kerbs' },
+      { value: 2078357, label: 'OpenStreetMap features analysed' },
+      { value: 158993, label: 'known obstacles' },
+      { value: 540616, label: 'possible difficulties' },
+      { value: 129844, label: 'helpful features, such as dropped kerbs' },
     ],
     stackTitle: 'Data and technology',
     stack: [
       { icon: 'layers', name: 'OpenStreetMap', role: 'Obstacles and sidewalks, Geofabrik extract of 16 November 2026' },
       { icon: 'route', name: 'Valhalla and OSRM', role: 'Routes and turn directions, FOSSGIS instances' },
-      { icon: 'search', name: 'Nominatim', role: 'Address search in Tuscany' },
+      { icon: 'search', name: 'Nominatim', role: 'Address search in Italy' },
       { icon: 'report', name: 'Gemma 4', role: 'Reading of reports, with server-side checks' },
       { icon: 'mic', name: 'ElevenLabs', role: 'Dictation and voice guidance' },
       { icon: 'pin', name: 'React and Leaflet', role: 'Interface and map' },
     ],
     limitsTitle: 'What it does not do yet',
     limits: [
-      'It covers Tuscany, but outside town centres OpenStreetMap has little data: a map with no obstacles is not a street with no obstacles.',
+      'It covers Italy, but outside town centres OpenStreetMap has little data: a map with no obstacles is not a street with no obstacles.',
       'Reports stay to be checked until a moderator verifies them.',
       'It uses free public services, which can be slow or fail to respond.',
       'Voice guidance was tried in the browser, not while moving around with a phone.',
@@ -260,7 +260,7 @@ export const en: Copy = {
   faq: {
     title: 'Frequently asked questions',
     items: [
-      { q: 'Where does it work?', a: 'Across Tuscany, for routes up to 10 km. The routes on this page are in Pisa, where the project was born. Outside town centres OpenStreetMap has little data about obstacles: the map shows this with hatching.' },
+      { q: 'Where does it work?', a: 'Across Italy, for routes up to 10 km. The routes on this page are in Pisa, where the project was born. Outside town centres OpenStreetMap has little data about obstacles: the map shows this with hatching.' },
       { q: 'Is the route guaranteed to be barrier-free?', a: 'No. OpenWay shows what the data lets us check: known obstacles, reports and stretches with no information. The absence of known obstacles is not a guarantee, and no route has been checked in person.' },
       { q: 'Who checks the reports?', a: 'Every report starts as “to be checked”. Only a moderator can mark it as checked on site or as resolved. A resolved report is no longer avoided by routes.' },
       { q: 'What does the artificial intelligence do?', a: 'Gemma reads the description of a report, suggests a type and a severity and asks one targeted question. The person reporting confirms or corrects it. The AI never decides that an obstacle is verified.' },
@@ -275,7 +275,7 @@ export const en: Copy = {
     secondary: 'See the code',
   },
   footer: {
-    about: 'A prototype for finding your way in a wheelchair in Tuscany.',
+    about: 'A prototype for finding your way in a wheelchair in Italy.',
     productTitle: 'Product',
     projectTitle: 'Project',
     app: STATIC ? 'How to try it' : 'Open the map',

@@ -1,9 +1,11 @@
 import react from '@vitejs/plugin-react';
-import { copyFile, cp, mkdir } from 'node:fs/promises';
+import { copyFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin, type UserConfig } from 'vite';
 import { createApi } from './server/api.ts';
-import { ensureTiles } from './server/tiles.ts';
+import { ensureTiles, writeLandingTiles } from './server/tiles.ts';
+import { cellsAlongLine } from './shared/tiles.ts';
+import { it as landingCopy } from './src/landing/copy.it.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const osmDir = `${root}server/data/osm-tiles`;
@@ -37,8 +39,11 @@ function pagesBuild(): Plugin {
       const out = `${root}dist-pages/`;
       await mkdir(`${out}data`, { recursive: true });
       const osm = await osmReady();
-      if (osm.scope === 'demo') console.warn('\nDati OSM: solo lo snapshot demo di Pisa (npm run osm:download per tutta la Toscana).');
-      await cp(osmDir, `${out}data/osm`, { recursive: true });
+      if (osm.scope === 'demo') console.warn('\nDati OSM: solo lo snapshot demo di Pisa (npm run osm:download per tutta l\'Italia).');
+      // Celle ridotte agli ostacoli noti, complete solo attorno ai tragitti demo (300 m di margine): vedi writeLandingTiles.
+      const demoCells = new Set(landingCopy.demo.scenarios.flatMap((s) => cellsAlongLine([s.from, s.to], 300)));
+      const copied = await writeLandingTiles(osmDir, `${out}data/osm`, demoCells);
+      console.log(`\nDati OSM per la landing: ${copied.cells} celle, ${(copied.bytes / 1e6).toFixed(1)} MB`);
       await copyFile(`${root}server/data/routes-recorded.json`, `${out}data/routes-recorded.json`);
       await copyFile(`${out}landing/index.html`, `${out}index.html`);
       await copyFile(`${out}index.html`, `${out}404.html`);

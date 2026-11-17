@@ -1,4 +1,4 @@
-// Scarica la griglia dei dati OSM della Toscana già pronta (server/data/osm-tiles/), senza bisogno di osmium.
+// Scarica la griglia dei dati OSM di tutta l'Italia già pronta (server/data/osm-tiles/), senza bisogno di osmium.
 // Uso: npm run osm:download
 // L'archivio è l'allegato della release "osm-data" del repository, rigenerato ogni settimana dal workflow
 // .github/workflows/osm-data.yml con `npm run osm:build`. Senza questi dati l'app usa lo snapshot demo di Pisa.
@@ -8,7 +8,7 @@ import { mkdir, readFile, rename, rm } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
-import type { OsmIndex } from '../shared/tiles.ts';
+import { decodeIndex, type OsmIndexFile } from '../shared/tiles.ts';
 
 const ARCHIVE_URL = process.env.OSM_TILES_URL ?? 'https://github.com/gixrda/openway/releases/download/osm-data/osm-tiles.tar.gz';
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -26,8 +26,8 @@ await pipeline(Readable.fromWeb(res.body as import('node:stream/web').ReadableSt
 await rm(unpacked, { recursive: true, force: true });
 await mkdir(unpacked, { recursive: true });
 execFileSync('tar', ['-xzf', archive, '-C', unpacked], { stdio: 'inherit' });
-const index = JSON.parse(await readFile(`${unpacked}/osm-tiles/index.json`, 'utf8')) as OsmIndex;
-if (index.scope !== 'region' || !Object.keys(index.cells ?? {}).length) throw new Error('Archivio non valido: i dati esistenti non sono stati modificati.');
+const index = decodeIndex(JSON.parse(await readFile(`${unpacked}/osm-tiles/index.json`, 'utf8')) as OsmIndexFile);
+if (index.scope !== 'full' || !Object.keys(index.cells ?? {}).length) throw new Error('Archivio non valido: i dati esistenti non sono stati modificati.');
 await rm(target, { recursive: true, force: true });
 await rename(`${unpacked}/osm-tiles`, target);
 await rm(unpacked, { recursive: true, force: true });

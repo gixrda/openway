@@ -1,7 +1,7 @@
 // Dati OpenStreetMap a celle (shared/tiles.ts): si scaricano solo le celle della zona guardata e quelle
 // attraversate dal percorso. Con il server le serve /api/osm/, nella versione statica sono file in data/osm/.
 import { useEffect, useState } from 'react';
-import { cellsAlongLine, cellsInBounds, TILE_ZOOM, type OsmIndex, type OsmTile } from '../../shared/tiles.ts';
+import { cellsAlongLine, cellsInBounds, decodeIndex, TILE_ZOOM, type OsmIndex, type OsmIndexFile, type OsmTile } from '../../shared/tiles.ts';
 import type { LatLngTuple, OsmFeature } from '../../shared/types.ts';
 import { BASE, STATIC } from '../landing/env.ts';
 
@@ -16,15 +16,18 @@ const root = STATIC ? `${BASE}data/osm/` : '/api/osm/';
 let index: Promise<OsmIndex> | null = null;
 const cells = new Map<string, Promise<OsmFeature[]>>();
 
-async function getJson<T>(path: string): Promise<T> {
+async function getJson<T>(path: string, missing?: T): Promise<T> {
   const res = await fetch(`${root}${path}`);
+  // Una cella che non esiste è una cella senza elementi (succede nella versione statica, che pubblica celle ridotte).
+  // Alcuni server statici rispondono a un file mancante con la pagina iniziale: conta come mancante anche quella.
+  if (missing !== undefined && (res.status === 404 || !(res.headers.get('content-type') ?? '').includes('json'))) return missing;
   if (!res.ok) throw new Error(`OSM ${path}: HTTP ${res.status}`);
   return res.json() as Promise<T>;
 }
 
 /** Indice delle celle: quali esistono e quanti dati contengono. Un errore non resta in cache: si riprova alla chiamata successiva. */
 export function loadOsmIndex(): Promise<OsmIndex> {
-  index ??= getJson<OsmIndex>('index.json').catch((e: unknown) => { index = null; throw e; });
+  index ??= getJson<OsmIndexFile>('index.json').then(decodeIndex).catch((e: unknown) => { index = null; throw e; });
   return index;
 }
 
@@ -33,7 +36,7 @@ function loadCell(key: string): Promise<OsmFeature[]> {
   if (hit) {
     cells.delete(key); // riletta: torna in fondo alla coda, l'ultima a essere scartata
   } else {
-    hit = getJson<OsmTile>(`${TILE_ZOOM}/${key}.json`)
+    hit = getJson<OsmTile>(`${TILE_ZOOM}/${key}.json`, { features: [] })
       .then((t) => t.features.map((f): OsmFeature => ({ ...f, source: 'osm', ...(f.tags.name ? { name: f.tags.name } : {}) })))
       .catch((e: unknown) => { cells.delete(key); throw e; });
   }

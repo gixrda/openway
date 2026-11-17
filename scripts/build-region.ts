@@ -1,31 +1,39 @@
-// Rigenera shared/region.ts: il confine della Toscana semplificato, usato per validare i punti e per la mappa.
-// Uso: npm run osm:region   (dopo npm run osm:build, che salva il confine preciso in .cache/osm/region.geojson)
-// Il file generato va nel repository: cambia solo se cambia il confine regionale.
+// Rigenera shared/region.ts: il confine dell'Italia semplificato, usato per validare i punti e per la mappa.
+// Uso: npm run osm:region   (legge l'estratto Geofabrik in .cache/osm/, scaricandolo se manca; richiede osmium-tool)
+// Il confine è l'insieme delle 20 regioni (relazioni admin_level=4 con ISO3166-2=IT-nn): seguono la costa,
+// mentre il confine di Stato in OpenStreetMap comprende le acque territoriali.
+// Il file generato va nel repository: cambia solo se cambiano i confini regionali.
 import { readFile, writeFile } from 'node:fs/promises';
+import { cached, ensureExtract, osmium } from './osm-extract.ts';
 
-const TOLERANCE_M = 300; // scostamento massimo dal confine vero (Douglas-Peucker)
-const MIN_AREA_KM2 = 1.5; // isole e scogli più piccoli si scartano (restano Gorgona e Giannutri, ~2 km²)
-const LAT0 = 43.4;
-const KX = Math.cos((LAT0 * Math.PI) / 180) * 111.32, KY = 110.54; // km per grado
+const REGIONS = 20;
+const TOLERANCE_M = 800; // scostamento massimo dal confine vero (Douglas-Peucker): il file finisce nel browser, deve restare piccolo
+const MIN_AREA_KM2 = 0.5; // isole e scogli più piccoli si scartano: li copre comunque il margine di shared/area.ts se sono vicini a terra
+const KY = 110.54; // km per grado di latitudine
+const kx = (lat: number) => Math.cos((lat * Math.PI) / 180) * 111.32;
 
 type Ring = [number, number][]; // [lng, lat] come in GeoJSON
 
-const areaKm2 = (r: Ring) => Math.abs(r.reduce((a, p, i) => {
-  const q = r[(i + 1) % r.length];
-  return a + (p[0] * KX) * (q[1] * KY) - (q[0] * KX) * (p[1] * KY);
-}, 0)) / 2;
+function areaKm2(r: Ring): number {
+  const k = kx(r[0][1]);
+  return Math.abs(r.reduce((a, p, i) => {
+    const q = r[(i + 1) % r.length];
+    return a + (p[0] * k) * (q[1] * KY) - (q[0] * k) * (p[1] * KY);
+  }, 0)) / 2;
+}
 
 function simplify(points: Ring, tolKm: number): Ring {
+  const k = kx(points[0][1]);
   const keep = new Uint8Array(points.length);
   keep[0] = keep[points.length - 1] = 1;
   const stack: [number, number][] = [[0, points.length - 1]];
   while (stack.length) {
     const [a, b] = stack.pop()!;
-    const [ax, ay] = [points[a][0] * KX, points[a][1] * KY], [bx, by] = [points[b][0] * KX, points[b][1] * KY];
+    const [ax, ay] = [points[a][0] * k, points[a][1] * KY], [bx, by] = [points[b][0] * k, points[b][1] * KY];
     const len = Math.hypot(bx - ax, by - ay);
     let far = -1, max = tolKm;
     for (let i = a + 1; i < b; i++) {
-      const [px, py] = [points[i][0] * KX, points[i][1] * KY];
+      const [px, py] = [points[i][0] * k, points[i][1] * KY];
       const d = len === 0 ? Math.hypot(px - ax, py - ay) : Math.abs((bx - ax) * (ay - py) - (ax - px) * (by - ay)) / len;
       if (d > max) { max = d; far = i; }
     }
@@ -34,12 +42,19 @@ function simplify(points: Ring, tolKm: number): Ring {
   return points.filter((_, i) => keep[i]);
 }
 
-const src = new URL('../.cache/osm/region.geojson', import.meta.url);
-const { geometry } = JSON.parse(await readFile(src, 'utf8')) as { geometry: { type: string; coordinates: Ring[][] } };
-if (geometry.type !== 'MultiPolygon') throw new Error('Confine non valido: esegui prima npm run osm:build.');
+const pbf = await ensureExtract();
+osmium('tags-filter', '-O', '-o', cached('boundary.osm.pbf'), pbf, 'r/admin_level=4');
+osmium('export', '-O', '-o', cached('boundary.geojson'), '--geometry-types=polygon', cached('boundary.osm.pbf'));
+const { features } = JSON.parse(await readFile(cached('boundary.geojson'), 'utf8')) as {
+  features: { properties: Record<string, string>; geometry: { type: string; coordinates: Ring[][] } }[];
+};
+const regions = features.filter((f) => /^IT-\d\d$/.test(f.properties['ISO3166-2'] ?? '') && f.geometry.type === 'MultiPolygon');
+const codes = [...new Set(regions.map((f) => f.properties['ISO3166-2']))].sort();
+// Una relazione incompleta nell'estratto farebbe sparire una regione intera: meglio fermarsi.
+if (codes.length !== REGIONS) throw new Error(`Trovate ${codes.length} regioni su ${REGIONS} (${codes.join(', ')}): shared/region.ts non è stato modificato.`);
 
-const rings = geometry.coordinates
-  .map((polygon) => polygon[0]) // solo il contorno esterno: le enclave interne non servono a validare un punto
+const rings = regions
+  .flatMap((f) => f.geometry.coordinates.map((polygon) => polygon[0])) // solo i contorni esterni: le enclave interne non servono a validare un punto
   .filter((r) => areaKm2(r) >= MIN_AREA_KM2)
   .sort((a, b) => areaKm2(b) - areaKm2(a))
   // Un anello chiuso va semplificato in due metà, altrimenti primo e ultimo punto coincidono e la distanza non ha senso.
@@ -48,22 +63,22 @@ const rings = geometry.coordinates
     return [...simplify(r.slice(0, mid + 1), TOLERANCE_M / 1000), ...simplify(r.slice(mid), TOLERANCE_M / 1000).slice(1)];
   });
 
-const all = rings.flat();
-const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
-const bounds = [Math.min(...all.map((p) => p[1])), Math.min(...all.map((p) => p[0])), Math.max(...all.map((p) => p[1])), Math.max(...all.map((p) => p[0]))].map(r4);
-const body = rings.map((r) => `  [${r.map(([lng, lat]) => `[${r4(lat)},${r4(lng)}]`).join(',')}],`).join('\n');
+const r3 = (v: number) => Math.round(v * 1e3) / 1e3; // ~100 m: molto meno della tolleranza
+let [s, w, n, e] = [Infinity, Infinity, -Infinity, -Infinity];
+for (const [lng, lat] of rings.flat()) { s = Math.min(s, lat); w = Math.min(w, lng); n = Math.max(n, lat); e = Math.max(e, lng); }
+const body = rings.map((r) => `  [${r.map(([lng, lat]) => `[${r3(lat)},${r3(lng)}]`).join(',')}],`).join('\n');
 
 await writeFile(new URL('../shared/region.ts', import.meta.url), `// GENERATO da scripts/build-region.ts (npm run osm:region): non modificare a mano.
-// Confine della Toscana (relazione OpenStreetMap ISO3166-2=IT-52, © OpenStreetMap contributors, ODbL),
-// semplificato con una tolleranza di ${TOLERANCE_M} m; isole sotto ${MIN_AREA_KM2} km² escluse. Coordinate [lat, lng].
+// Confini delle ${REGIONS} regioni italiane (relazioni OpenStreetMap admin_level=4, © OpenStreetMap contributors, ODbL),
+// semplificati con una tolleranza di ${TOLERANCE_M} m; isole sotto ${MIN_AREA_KM2} km² escluse. Coordinate [lat, lng].
 import type { LatLngTuple } from './types.ts';
 
-/** Contorni esterni: il primo è la terraferma, gli altri le isole dell'Arcipelago e le exclave. */
+/** Contorni esterni di regioni e isole, dal più grande al più piccolo. I confini tra regioni compaiono due volte. */
 export const REGION_RINGS: LatLngTuple[][] = [
 ${body}
 ];
 
-/** Riquadro che contiene la regione: [sud, ovest, nord, est]. */
-export const REGION_BOUNDS: [number, number, number, number] = [${bounds.join(', ')}];
+/** Riquadro che contiene tutti i contorni: [sud, ovest, nord, est]. */
+export const REGION_BOUNDS: [number, number, number, number] = [${[s, w, n, e].map(r3).join(', ')}];
 `);
-console.log(`Confine: ${geometry.coordinates.length} poligoni → ${rings.length} contorni, ${all.length} punti`, rings.map((r) => `${r.length} pt, ${areaKm2(r).toFixed(0)} km²`));
+console.log(`Confine: ${codes.length} regioni → ${rings.length} contorni, ${rings.flat().length} punti`);

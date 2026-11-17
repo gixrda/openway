@@ -5,7 +5,7 @@ import {
   NOT_SURE_BY_LANG, REPORT_CATEGORIES, VERIFICATION_STATUSES,
   type Interpretation, type Report, type ReportCategory, type ReportDraft, type VerificationStatus,
 } from '../shared/types.ts';
-import { inTuscany } from '../shared/area.ts';
+import { inArea } from '../shared/area.ts';
 import { routingImpact } from '../shared/rules.ts';
 import { interpret, type Photo } from './ai.ts';
 import { HttpError, type Env } from './errors.ts';
@@ -78,7 +78,7 @@ export function createReportStore(file: string) {
 
   async function create(input: unknown, env: Env): Promise<Report> {
     const { lat, lng, description, category, draftId, answer, blocking } = (input ?? {}) as Record<string, unknown>;
-    if (!inTuscany(lat, lng)) throw new HttpError(400, m().reportOutside);
+    if (!inArea(lat, lng)) throw new HttpError(400, m().reportOutside);
     const text = parseDescription(description);
     if (category !== undefined && category !== null && category !== '' && !REPORT_CATEGORIES.includes(category as ReportCategory)) {
       throw new HttpError(400, m().badCategory);

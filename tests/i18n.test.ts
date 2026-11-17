@@ -106,7 +106,7 @@ describe('lingua della richiesta', () => {
 
       expect((await call('/api/geocode?q=a', 'en')).error).toBe('Type at least 3 letters to search.');
       expect((await call('/api/geocode?q=a', null)).error).toBe('Scrivi almeno 3 lettere per cercare.');
-      expect((await call('/api/route', 'en', { from: { lat: 0, lng: 0 }, to: { lat: 0, lng: 0 } })).error).toBe('The start and the destination must be in Tuscany.');
+      expect((await call('/api/route', 'en', { from: { lat: 0, lng: 0 }, to: { lat: 0, lng: 0 } })).error).toBe('The start and the destination must be in Italy.');
 
       const point = { lat: 43.7175, lng: 10.4005 };
       const english = await call('/api/reports', 'en', { ...point, description: 'There is a high step and I cannot get past.' });

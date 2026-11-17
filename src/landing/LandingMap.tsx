@@ -112,9 +112,9 @@ export function LandingMap({ mapRef, label, className, features, reports, route,
       ref={mapRef}
       center={PISA_CENTER}
       zoom={zoom}
-      minZoom={9}
+      minZoom={6}
       maxZoom={19}
-      maxBounds={[[rs - 0.4, rw - 0.4], [rn + 0.4, re + 0.4]]}
+      maxBounds={[[rs - 1, rw - 1], [rn + 1, re + 1]]}
       zoomControl={false}
       scrollWheelZoom={false}
       className={`ow-map${className ? ` ${className}` : ''}`}

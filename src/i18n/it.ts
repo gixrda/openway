@@ -12,7 +12,7 @@ export const it = {
   locale: 'it-IT',
   decimal: ',',
   meta: {
-    description: 'OpenWay, freedom to move: percorsi e ostacoli per la mobilità in sedia a rotelle in Toscana.',
+    description: 'OpenWay, freedom to move: percorsi e ostacoli per la mobilità in sedia a rotelle in Italia.',
   },
   language: {
     /** Nome della lingua a cui si passa premendo il bottone */
@@ -45,7 +45,7 @@ export const it = {
     loadOsmError: 'Non riusciamo a caricare gli ostacoli conosciuti: la mappa funziona, ma non li vedrai. Ricarica la pagina tra poco.',
     loadReportsError: 'Non riusciamo a caricare le segnalazioni degli utenti. Ricarica la pagina tra poco.',
     geoUnsupported: 'Questo browser non può dirci dove sei. Scegli il punto sulla mappa.',
-    geoOutside: 'Sembri fuori dalla Toscana: per ora OpenWay funziona solo qui. Scegli il punto sulla mappa.',
+    geoOutside: "Sembri fuori dall'Italia: per ora OpenWay funziona solo qui. Scegli il punto sulla mappa.",
     routeTooLong: (km: number) => `Partenza e arrivo sono troppo lontani: calcoliamo percorsi fino a ${km} km in linea d'aria.`,
     geoDenied: 'Non possiamo vedere dove sei perché il permesso è stato negato. Scegli il punto sulla mappa.',
     geoFailed: 'Non riusciamo a trovare la tua posizione. Scegli il punto sulla mappa.',
@@ -54,7 +54,7 @@ export const it = {
     panelLabel: 'Pannello OpenWay',
     collapse: 'Riduci pannello',
     expand: 'Espandi pannello',
-    place: 'Freedom to move · Toscana',
+    place: 'Freedom to move · Italia',
     sections: 'Sezioni',
     tabRoute: 'Percorso',
     tabReport: 'Segnala un ostacolo',
@@ -70,7 +70,7 @@ export const it = {
       caution: { title: 'Il percorso non cambia', text: 'La segnalazione è sulla mappa ma non blocca il passaggio.' },
     },
     closeMessage: 'Chiudi il messaggio',
-    notFound: 'Non abbiamo trovato questo indirizzo in Toscana. Prova ad aggiungere la città o scegli il punto sulla mappa.',
+    notFound: 'Non abbiamo trovato questo indirizzo in Italia. Prova ad aggiungere la città o scegli il punto sulla mappa.',
     remove: (label: string) => `Rimuovi ${label.toLowerCase()}`,
     change: 'Cambia',
     placeholder: 'Via o luogo e città, es. Via Roma, Lucca',
@@ -239,7 +239,7 @@ export const it = {
     label: "Dettagli dell'elemento selezionato",
   },
   map: {
-    label: 'Mappa della Toscana con ostacoli e segnalazioni',
+    label: "Mappa d'Italia con ostacoli e segnalazioni",
     zoomIn: 'Avvicina',
     zoomOut: 'Allontana',
     notPassable: ', non si passa',

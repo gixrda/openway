@@ -157,14 +157,14 @@ export function MapView(p: Props) {
   const c = dark ? PALETTE.dark : PALETTE.light;
   const shown = useMemo(() => p.features.filter((f) => visible(f, p.layers, zoom) || f.id === selId), [p.features, p.layers, zoom, selId]);
   const [rs, rw, rn, re] = REGION_BOUNDS;
-  const pad = 0.4; // margine attorno alla regione, per poter centrare anche i luoghi sul confine
+  const pad = 1; // margine attorno all'Italia, per poter centrare anche i luoghi sul confine
 
   return (
     <MapContainer
       // La mappa si apre sulla partenza o sull'arrivo del link, se ci sono; altrimenti su Pisa, dove è nato il progetto.
       center={p.from ? [p.from.lat, p.from.lng] : p.to ? [p.to.lat, p.to.lng] : [43.7175, 10.4005]}
       zoom={16}
-      minZoom={8}
+      minZoom={6}
       maxZoom={19}
       maxBounds={[[rs - pad, rw - pad], [rn + pad, re + pad]]}
       preferCanvas

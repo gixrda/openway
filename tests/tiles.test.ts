@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { elementFromGeojson, matchesQuery, normalizeOverpass } from '../server/osm.ts';
 import { buildTiles, countsAsData, ensureTiles } from '../server/tiles.ts';
-import { inTuscany, straightDistanceM } from '../shared/area.ts';
+import { inArea, straightDistanceM } from '../shared/area.ts';
 import { isTrail } from '../shared/osmClassify.ts';
 import { cellKey, cellsAlongLine, cellsInBounds, dataLevel } from '../shared/tiles.ts';
 import type { OsmFeature, RouteResult } from '../shared/types.ts';
@@ -48,7 +48,7 @@ describe('costruzione delle celle', () => {
     { type: 'way', id: 4, geometry: [{ lat: 43.7175, lon: 10.4005 }, { lat: 43.718, lon: 10.401 }], tags: { highway: 'path', surface: 'ground', sac_scale: 'hiking' } },
     { type: 'node', id: 5, lat: 43.7177, lon: 10.4007, tags: { shop: 'bakery', wheelchair: 'yes' } },
   ]);
-  const { index, tiles } = buildTiles(features, { source: 'test', fetchedAt: '2026-11-16T21:22:36Z', scope: 'region' });
+  const { index, tiles } = buildTiles(features, { source: 'test', fetchedAt: '2026-11-16T21:22:36Z', scope: 'full' });
 
   it('toglie etichetta, fonte e nome e arrotonda le coordinate', () => {
     const kerb = tiles.get('8665/5975')!.find((f) => f.id === 'node/1')!;
@@ -70,7 +70,7 @@ describe('costruzione delle celle', () => {
 
   it("conta come dati solo gli elementi utili del percorso: non i luoghi, i sentieri e gli attraversamenti senza informazioni", () => {
     expect(features.map(countsAsData)).toEqual([true, false, true, false, false]);
-    expect(index).toMatchObject({ scope: 'region', zoom: 14, cells: { '8665/5975': 2, '8666/5975': 1 } });
+    expect(index).toMatchObject({ scope: 'full', zoom: 14, cells: { '8665/5975': 2, '8666/5975': 1 } });
   });
 
   it('senza dati regionali crea la griglia dallo snapshot demo, una volta sola', async () => {
@@ -130,19 +130,23 @@ describe('estratto filtrato in locale', () => {
   });
 });
 
-describe('area: Toscana', () => {
+describe('area: Italia', () => {
   it.each([
-    ['Pisa', 43.7175, 10.4005, true], ['Firenze', 43.7696, 11.2558, true], ['Lucca', 43.8429, 10.5027, true],
-    ['Siena', 43.3188, 11.3308, true], ['Portoferraio (Elba)', 42.8145, 10.3167, true], ['Carrara', 44.079, 10.098, true],
-    ['Sansepolcro', 43.5703, 12.1414, true],
-    ['La Spezia', 44.1025, 9.824, false], ['Bologna', 44.4949, 11.3426, false], ['Perugia', 43.1107, 12.3908, false],
-    ['Città di Castello', 43.4574, 12.2403, false], ['mare aperto', 43.5, 10.0, false], ['Roma', 41.9, 12.5, false],
+    ['Pisa', 43.7175, 10.4005, true], ['Firenze', 43.7696, 11.2558, true], ['Roma', 41.9028, 12.4964, true],
+    ['Milano', 45.4642, 9.19, true], ['Napoli', 40.8518, 14.2681, true], ['Palermo', 38.1157, 13.3615, true],
+    ['Cagliari', 39.2238, 9.1217, true], ['Venezia', 45.4371, 12.3326, true], ['Aosta', 45.7372, 7.3206, true],
+    ['Bolzano', 46.4983, 11.3548, true], ['Trieste', 45.6495, 13.7768, true], ['Lecce', 40.3515, 18.175, true],
+    ['Portoferraio (Elba)', 42.8145, 10.3167, true], ['Lampedusa', 35.5022, 12.6094, true], ['Ventimiglia', 43.7912, 7.6076, true],
+    ['Città del Vaticano (enclave nel Lazio)', 41.9022, 12.4539, true],
+    ['San Marino (tra due regioni, non dentro una)', 43.9361, 12.4473, false], ['Nizza', 43.7102, 7.262, false], ['Lugano', 46.0037, 8.9511, false], ['Innsbruck', 47.2692, 11.4041, false],
+    ['Lubiana', 46.0569, 14.5058, false], ['Bastia (Corsica)', 42.6973, 9.4509, false], ['Malta', 35.8989, 14.5146, false],
+    ['Tirreno, mare aperto', 40.5, 11.5, false], ['Adriatico, mare aperto', 43.5, 14.5, false],
   ])('%s', (_name, lat, lng, inside) => {
-    expect(inTuscany(lat, lng)).toBe(inside);
+    expect(inArea(lat, lng)).toBe(inside);
   });
 
   it('rifiuta valori che non sono coordinate', () => {
-    expect([inTuscany('43.7', 10.4), inTuscany(NaN, 10.4), inTuscany(undefined, undefined)]).toEqual([false, false, false]);
+    expect([inArea('43.7', 10.4), inArea(NaN, 10.4), inArea(undefined, undefined)]).toEqual([false, false, false]);
   });
 
   it('misura la distanza in linea d\'aria', () => {

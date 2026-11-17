@@ -6,7 +6,7 @@ import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { langFromHeader } from '../shared/lang.ts';
-import { inTuscany, REGION_BOUNDS, straightDistanceM } from '../shared/area.ts';
+import { inArea, REGION_BOUNDS, straightDistanceM } from '../shared/area.ts';
 import { RULES } from '../shared/rules.ts';
 import { TILE_ZOOM } from '../shared/tiles.ts';
 import type { GeocodeResult, ServerStatus } from '../shared/types.ts';
@@ -45,10 +45,10 @@ export function createApi({ env, reportsFile, osmDir }: ApiOptions) {
     const wait = lastNominatim + 1000 - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     lastNominatim = Date.now();
-    // Nominatim accetta solo un riquadro: i risultati fuori dal confine regionale si scartano dopo.
+    // Nominatim accetta un riquadro e un elenco di Paesi (Italia e Città del Vaticano): il confine vero si applica ai risultati.
     const [s, w, n, e] = REGION_BOUNDS;
     const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-      q, format: 'jsonv2', limit: '8', viewbox: `${w},${n},${e},${s}`, bounded: '1', 'accept-language': lang,
+      q, format: 'jsonv2', limit: '8', viewbox: `${w},${n},${e},${s}`, bounded: '1', countrycodes: 'it,va', 'accept-language': lang,
     })}`;
     const down = m().geocodeDown;
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(10_000) })
@@ -56,7 +56,7 @@ export function createApi({ env, reportsFile, osmDir }: ApiOptions) {
     if (!res.ok) throw new HttpError(503, down);
     const json = await res.json() as { display_name: string; lat: string; lon: string }[];
     const results = json.map((r) => ({ label: r.display_name, lat: Number(r.lat), lng: Number(r.lon) }))
-      .filter((r) => inTuscany(r.lat, r.lng)).slice(0, 5);
+      .filter((r) => inArea(r.lat, r.lng)).slice(0, 5);
     geocodeCache.set(key, results);
     return results;
   }
@@ -130,7 +130,7 @@ export function createApi({ env, reportsFile, osmDir }: ApiOptions) {
         const { from, to, profile = 'wheelchair' } = (await body(req) ?? {}) as {
           from?: { lat?: unknown; lng?: unknown }; to?: { lat?: unknown; lng?: unknown }; profile?: unknown;
         };
-        if (!from || !to || !inTuscany(from.lat, from.lng) || !inTuscany(to.lat, to.lng)) {
+        if (!from || !to || !inArea(from.lat, from.lng) || !inArea(to.lat, to.lng)) {
           throw new HttpError(400, m().routeOutside);
         }
         if (profile !== 'wheelchair' && profile !== 'foot') throw new HttpError(400, m().badProfile);

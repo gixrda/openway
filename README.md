@@ -195,7 +195,7 @@ Demo in 3 minuti: link 5 (spiega la scelta) → link 3 (limite dichiarato) → l
 | `npm run osm:build` | ricostruisce gli stessi dati dall'estratto Geofabrik dell'Italia (2,3 GB, scaricato in `.cache/osm/`; circa un minuto dopo il download); richiede `osmium-tool`; `-- --refresh` riscarica l'estratto |
 | `npm run osm:region` | rigenera il confine semplificato dell'Italia (`shared/region.ts`) dallo stesso estratto |
 | `npm run fetch:osm` | riscarica lo snapshot demo della zona universitaria di Pisa (una sola richiesta a Overpass), usato quando mancano i dati regionali |
-| `npm run record:routes` | registra i percorsi dei tragitti demo per la landing statica (`server/data/routes-recorded.json`) |
+| `npm run record:routes` | registra i percorsi dei tragitti demo per la landing statica, una volta per lingua (`server/data/routes-recorded.json`; 10 richieste ai servizi pubblici di routing) |
 | `npm run build:pages` | build statico della landing per GitHub Pages in `dist-pages/` (`npm run preview:pages` per provarlo in locale) |
 
 Lint non configurato (scelta per ridurre le dipendenze); TypeScript in modalità `strict`.

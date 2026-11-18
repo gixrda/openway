@@ -47,6 +47,8 @@ export const it = {
     loading: 'Calcolo il percorso di esempio…',
     error: 'Il servizio dei percorsi non risponde in questo momento. Sulla mappa restano gli ostacoli conosciuti.',
     note: 'Calcolato ora per sedia a rotelle e confrontato con OpenStreetMap. Nessun tratto è stato controllato di persona.',
+    /** Sulla landing statica il percorso non è calcolato al momento: è quello registrato */
+    noteRecorded: 'Percorso per sedia a rotelle confrontato con OpenStreetMap. Nessun tratto è stato controllato di persona.',
     recorded: (date: string) => `Versione dimostrativa: percorso registrato il ${date}, senza calcolo dal vivo su questa pagina.`,
     /** Avviso dei percorsi registrati quando il servizio per sedia a rotelle non rispondeva (versione statica) */
     recordedFoot: 'Il servizio dei percorsi per sedia a rotelle non risponde. Ti mostriamo un normale percorso a piedi.',

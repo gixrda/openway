@@ -2,6 +2,7 @@
 // I percorsi registrati vengono serviti come file (come le celle dei dati OSM, vedi src/lib/osmTiles.ts);
 // la ricerca va direttamente a Nominatim.
 import { inArea, REGION_BOUNDS } from '../../shared/area.ts';
+import type { Lang } from '../../shared/lang.ts';
 import type { GeocodeResult, RouteResult } from '../../shared/types.ts';
 import { getLang, t } from '../i18n/index.ts';
 import { getCopy } from './copy.ts';
@@ -9,7 +10,8 @@ import { BASE, STATIC } from './env.ts';
 
 export { BASE, STATIC };
 
-export interface RecordedRoutes { recordedAt: string; routes: Record<string, RouteResult> }
+/** Percorsi registrati per lingua (contengono testi del server), poi per coppia "partenza|arrivo". */
+export interface RecordedRoutes { recordedAt: string; routes: Record<Lang, Record<string, RouteResult>> }
 
 let recorded: Promise<RecordedRoutes> | null = null;
 async function json<T>(path: string): Promise<T> {

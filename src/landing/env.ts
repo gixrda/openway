@@ -6,10 +6,11 @@ export const STATIC = env?.VITE_STATIC === '1';
 export const BASE = env?.BASE_URL ?? '/';
 
 /**
- * Indirizzo della demo pubblica dell'app completa (con il server), es. 'https://openway.example.org/'.
- * Vuoto finché non è pubblicata: va scritto qui dopo il primo deploy (vedi "Pubblicare l'app" nel README).
- * La landing statica su GitHub Pages lo usa per i link "Apri OpenWay"; senza, rimanda alle istruzioni.
+ * Indirizzo della demo pubblica dell'app completa (con il server), con la barra finale.
+ * La landing statica su GitHub Pages lo usa per i link "Apri OpenWay" e per aprire nell'app i tragitti demo.
+ * Se la demo viene spostata o chiusa va aggiornato qui (vedi "Pubblicare l'app" nel README): vuoto, i link
+ * rimandano alle istruzioni di installazione.
  */
-export const DEMO_URL: string = '';
+export const DEMO_URL: string = 'https://openway-q47u.onrender.com/';
 /** true se dalla landing si può aprire l'app: sempre con il server, su GitHub Pages solo se esiste la demo pubblica. */
 export const HAS_APP = !STATIC || DEMO_URL !== '';

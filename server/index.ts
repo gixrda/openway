@@ -21,11 +21,14 @@ const TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.woff2': 'font/woff2',
 };
 
-// Header di sicurezza per le pagine e i file statici. Il browser parla solo con questo server e con le tile OSM.
+// Header di sicurezza per le pagine e i file statici. Il browser parla solo con questo server e con le mappe di base
+// (OpenFreeMap; le tile OpenStreetMap come ripiego).
 const SECURITY_HEADERS: Record<string, string> = {
   'Content-Security-Policy': [
     "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'",
-    "font-src 'self'", "img-src 'self' data: blob: https://tile.openstreetmap.org", "connect-src 'self'",
+    "font-src 'self'", "img-src 'self' data: blob: https://tile.openstreetmap.org",
+    // Mappa vettoriale: stile, tile, caratteri e icone arrivano da OpenFreeMap (il worker di MapLibre è un file di questo sito).
+    "connect-src 'self' https://tiles.openfreemap.org",
     "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
   ].join('; '),
   'X-Content-Type-Options': 'nosniff',

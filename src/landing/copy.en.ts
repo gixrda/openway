@@ -284,15 +284,16 @@ export const en: Copy = {
     privacyTitle: 'Privacy',
     privacy: [
       'This page uses no cookies and no analytics tools, and the typeface is served by the site itself.',
-      'To show the map the browser downloads images from the OpenStreetMap servers; if you search for a place, the search text goes to Nominatim (OpenStreetMap). Both receive the visitor’s IP address, as happens with any external content.',
+      'To show the map the browser downloads data from the OpenFreeMap servers (or images from the OpenStreetMap servers, if the vector map is not available); if you search for a place, the search text goes to Nominatim (OpenStreetMap). They all receive the visitor’s IP address, as happens with any external content.',
       STATIC
         ? 'The site is hosted on GitHub Pages, which logs visits according to its own privacy statement.'
         : 'In the app, reports are saved on the project server with the point chosen on the map; photos are resized in the browser and stripped of GPS data; voice audio and transcripts are not kept.',
     ],
     privacyLinks: [
       { href: 'https://osmfoundation.org/wiki/Privacy_Policy', label: 'OpenStreetMap privacy policy' },
+      { href: 'https://openfreemap.org/privacy/', label: 'OpenFreeMap privacy policy' },
       ...(STATIC ? [{ href: 'https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement', label: 'GitHub privacy statement' }] : []),
     ],
-    credits: 'Map data © OpenStreetMap contributors (ODbL). Routes: Valhalla and OSRM (FOSSGIS e.V.). Typeface: Atkinson Hyperlegible Next (OFL), served by the site.',
+    credits: 'Map data © OpenStreetMap contributors (ODbL). Base map: OpenFreeMap, © OpenMapTiles. Routes: Valhalla and OSRM (FOSSGIS e.V.). Typeface: Atkinson Hyperlegible Next (OFL), served by the site.',
   },
 };

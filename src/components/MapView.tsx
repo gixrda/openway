@@ -1,6 +1,6 @@
 import L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
 import { REGION_BOUNDS } from '../../shared/area.ts';
 import type { OsmIndex } from '../../shared/tiles.ts';
 import type { LatLngTuple, OsmFeature, Report, RouteResult } from '../../shared/types.ts';
@@ -9,6 +9,7 @@ import { CATEGORY_ICON } from '../lib/labels.ts';
 import type { RouteAlert } from '../lib/alerts.ts';
 import { iconSvg, type IconName } from '../lib/icons.ts';
 import { FEATURE_ZOOM, type Bounds } from '../lib/osmTiles.ts';
+import { BaseMap } from './BaseMap.tsx';
 import { CoverageLayer } from './CoverageLayer.tsx';
 
 export type Layers = Record<'known' | 'possible' | 'positive' | 'info' | 'places' | 'reports', boolean>;
@@ -172,14 +173,8 @@ export function MapView(p: Props) {
       className={`map${p.pickMode ? ' map--picking' : ''}`}
       aria-label={t.map.label}
     >
-      {/* Tile OpenStreetMap desaturate via CSS (.tiles): percorso e ostacoli restano gli unici elementi colorati.
-          Le basemap CARTO richiedono una chiave dal browser (filigrana "API KEY REQUIRED"), quindi non si usano. */}
-      <TileLayer
-        className="tiles"
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxZoom={19}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      />
+      {/* Mappa vettoriale di OpenFreeMap; se non è disponibile, le tile OpenStreetMap desaturate via CSS (.tiles). */}
+      <BaseMap className="basemap" rasterClassName="tiles" />
       {/* Leaflet legge i titoli solo alla creazione: con la chiave il controllo viene ricreato al cambio lingua. */}
       <ZoomControl key={lang} position="bottomright" zoomInTitle={t.map.zoomIn} zoomOutTitle={t.map.zoomOut} />
       <ViewWatcher onZoom={setZoom} onView={p.onView} />

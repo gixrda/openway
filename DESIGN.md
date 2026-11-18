@@ -153,7 +153,7 @@ The landing is a cartographic product canvas, not a marketing page. The first vi
 The world is daylight: pages are read outdoors, before leaving. Density is calm, with generous section spacing and asymmetric 12-column compositions (a sticky title on the left, content on the right). Colour is almost entirely ink on white; blue belongs to the route and to the one action that matters. The data vocabulary (marker shapes and colours, numbered route points, endpoints) is shared with the app so a person who learned the landing can read the app.
 
 **Key Characteristics:**
-- Map first: the hero is a live Leaflet map with grayscale tiles, not an illustration.
+- Map first: the hero is a live Leaflet map (vector base map, grayscale raster tiles as fallback), not an illustration.
 - Glass only over the map; solid surfaces everywhere else.
 - One family, Atkinson Hyperlegible Next, for every role.
 - Pill geometry for everything you press or type into; rounded rectangles for containers.
@@ -310,4 +310,4 @@ Native details/summary rows with hairlines, 64px rows, a rotating chevron; answe
 - **Don't** convey a state by colour alone; pair it with shape, icon or text.
 - **Don't** add a second typeface.
 - **Don't** add uppercase kickers or eyebrows above headings.
-- **Don't** let map tiles compete with data: tiles stay grayscale (82%) and slightly lowered in contrast.
+- **Don't** let the base map compete with data: route and markers must stay the strongest colours on it. Since 18/11/2026 the base map is the OpenFreeMap "Liberty" vector style (soft colours); the raster fallback tiles stay grayscale (82%) and slightly lowered in contrast.

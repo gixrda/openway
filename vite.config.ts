@@ -19,8 +19,9 @@ const PAGES_CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'", // stili inline di Leaflet e delle animazioni
   "font-src 'self'",
-  "img-src 'self' data: https://tile.openstreetmap.org",
-  "connect-src 'self' https://nominatim.openstreetmap.org",
+  "img-src 'self' data: blob: https://tile.openstreetmap.org",
+  // Nominatim per la ricerca; stile, tile, caratteri e icone della mappa vettoriale da OpenFreeMap.
+  "connect-src 'self' https://nominatim.openstreetmap.org https://tiles.openfreemap.org",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'none'",
@@ -51,18 +52,25 @@ function pagesBuild(): Plugin {
   };
 }
 
+// Il worker di MapLibre è un file .mjs: lo si pubblica come .js, perché non tutti i server statici
+// (compreso server/index.ts) associano a .mjs il tipo JavaScript, e un worker a moduli con il tipo sbagliato non parte.
+const output = {
+  assetFileNames: (asset: { names?: string[] }) =>
+    asset.names?.[0]?.endsWith('.mjs') ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]',
+};
+
 export default defineConfig(({ mode }): UserConfig => {
   if (mode === 'static') {
     process.env.VITE_STATIC = '1';
     return {
       base: '/openway/',
-      build: { outDir: 'dist-pages', rollupOptions: { input: { landing: `${root}landing/index.html` } } },
+      build: { outDir: 'dist-pages', rollupOptions: { input: { landing: `${root}landing/index.html` }, output } },
       plugins: [react(), pagesBuild()],
     };
   }
   return {
     // Due pagine: l'app su / (link demo ?from=&to=) e la landing su /landing/.
-    build: { rollupOptions: { input: { app: `${root}index.html`, landing: `${root}landing/index.html` } } },
+    build: { rollupOptions: { input: { app: `${root}index.html`, landing: `${root}landing/index.html` }, output } },
     plugins: [
       react(),
       {

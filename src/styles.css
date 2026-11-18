@@ -218,7 +218,8 @@ code { font-size: 0.85em; background: var(--fill); padding: 1px 5px; border-radi
 .hatch-key--few { background: repeating-linear-gradient(135deg, var(--ink-3) 0 1px, transparent 1px 10px); }
 /* Quanti dati ci sono nella zona guardata, detto a parole: in basso, al centro dello spazio libero accanto al pannello. */
 .data-note {
-  position: absolute; z-index: 999; bottom: var(--gutter);
+  /* Sopra la riga dei crediti della mappa, che con la mappa vettoriale è più lunga. */
+  position: absolute; z-index: 999; bottom: calc(var(--gutter) + 30px);
   left: calc((100% + var(--panel-w) + var(--gutter)) / 2); transform: translateX(-50%);
   width: max-content; max-width: min(560px, calc(100% - var(--panel-w) - 4 * var(--gutter) - 120px));
   margin: 0; padding: 8px 16px; border-radius: var(--r-pill);
@@ -446,6 +447,12 @@ select { appearance: auto; }
 .admin summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 
 /* ---------- Mappa base desaturata ---------- */
+/* Mappa di base. .basemap è il canvas della mappa vettoriale (BaseMap.tsx): colori dello stile così come sono,
+   nel tema scuro invertiti mantenendo le tinte (acqua blu, verde verde). .tiles sono le tile raster di ripiego,
+   desaturate come prima. */
+@media (prefers-color-scheme: dark) {
+  .basemap { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.88) saturate(0.8); }
+}
 .tiles { filter: grayscale(1) brightness(1.07) contrast(0.86); }
 @media (prefers-color-scheme: dark) {
   .tiles { filter: invert(1) hue-rotate(180deg) grayscale(1) brightness(0.92) contrast(0.82); }

@@ -30,7 +30,7 @@ flowchart LR
     NOM[Nominatim<br/>indirizzi]
     GEM[Google AI Studio<br/>Gemma 4]
     EL[ElevenLabs<br/>Scribe v2 · Flash v2.5]
-    TILE[Tile OpenStreetMap]
+    TILE[Mappa di base OpenFreeMap<br/>ripiego: tile OpenStreetMap]
     OVP[Estratto Geofabrik Italia + osmium<br/>solo per costruire i dati]
   end
 
@@ -86,7 +86,7 @@ server/
   data/            snapshot demo di Pisa (committato); griglia regionale osm-tiles/, segnalazioni e foto (ignorati da git)
 src/
   App.tsx          stato dell'app, calcolo e ricalcolo, orchestrazione dei pannelli
-  components/      MapView, RoutePanel, ReportPanel, DetailPanel, MapControls, NavigationPanel, DictationButton
+  components/      MapView, BaseMap (mappa di base vettoriale con ripiego raster), CoverageLayer, RoutePanel, ReportPanel, DetailPanel, MapControls, NavigationPanel, DictationButton
   lib/             osmTiles (celle da scaricare), analysis (ostacoli lungo il percorso), compare, reroute, alerts, speech, navigation, labels, icons
   hooks/           useDictation, useElevenLabsVoice, useVoiceNavigation
   i18n/            lingua dell'interfaccia: it.ts (riferimento), en.ts, stato e cambio lingua in index.ts
@@ -222,7 +222,7 @@ L'accessibilità dei luoghi (`wheelchair=*` su negozi ed edifici) è un livello 
 
 ## Design system
 
-`src/styles.css` definisce tutto con variabili CSS: colori (tema chiaro e scuro automatici), superfici di vetro (`backdrop-filter` con superficie piena come ripiego), raggi, spazi, tipografia (Atkinson Hyperlegible Next). I colori dei marker vengono dalla palette Okabe-Ito, leggibile con deficit cromatici, e ogni stato ha anche una forma o un'icona: mai solo il colore. Le tile OpenStreetMap sono desaturate via CSS, così percorso e ostacoli restano gli unici elementi colorati.
+`src/styles.css` definisce tutto con variabili CSS: colori (tema chiaro e scuro automatici), superfici di vetro (`backdrop-filter` con superficie piena come ripiego), raggi, spazi, tipografia (Atkinson Hyperlegible Next). I colori dei marker vengono dalla palette Okabe-Ito, leggibile con deficit cromatici, e ogni stato ha anche una forma o un'icona: mai solo il colore. La mappa di base è vettoriale (`BaseMap.tsx`: stile "Liberty" di OpenFreeMap disegnato da MapLibre GL dentro Leaflet, così marker, percorsi e copertura restano quelli di prima). MapLibre e il suo worker si scaricano a parte, solo quando serve una mappa. Se lo stile non arriva entro 8 secondi, se il worker non parte o se manca WebGL, si torna alle tile raster di OpenStreetMap desaturate via CSS. Si aspetta lo stile e non il primo disegno, perché in una scheda in secondo piano il browser non disegna. Nel tema scuro il canvas viene invertito via CSS mantenendo le tinte.
 
 ## Test e verifica
 

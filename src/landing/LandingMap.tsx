@@ -1,9 +1,10 @@
 import gsap from 'gsap';
 import L from 'leaflet';
 import { useEffect, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
-import { MapContainer, Marker, Polyline, TileLayer, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, useMapEvents } from 'react-leaflet';
 import { REGION_BOUNDS } from '../../shared/area.ts';
 import type { LatLngTuple, OsmFeature, Report, RouteResult } from '../../shared/types.ts';
+import { BaseMap } from '../components/BaseMap.tsx';
 import { CoverageLayer } from '../components/CoverageLayer.tsx';
 import { useOsmIndex, useViewFeatures, type Bounds } from '../lib/osmTiles.ts';
 import type { RouteAlert } from '../lib/alerts.ts';
@@ -120,12 +121,8 @@ export function LandingMap({ mapRef, label, className, features, reports, route,
       className={`ow-map${className ? ` ${className}` : ''}`}
       aria-label={label}
     >
-      <TileLayer
-        className="ow-tiles"
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxZoom={19}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      />
+      {/* Stessa mappa di base dell'app; la landing ha solo il tema chiaro. */}
+      <BaseMap className="ow-basemap" rasterClassName="ow-tiles" />
       <ViewWatcher onView={setView} />
       {index && <CoverageLayer index={index} dark={false} />}
       {known.map((f) => f.geometry.type === 'line' ? (

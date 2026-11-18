@@ -198,15 +198,16 @@ Demo in 3 minuti: link 5 (spiega la scelta) → link 3 (limite dichiarato) → l
 | `npm run record:routes` | registra i percorsi dei tragitti demo per la landing statica, una volta per lingua (`server/data/routes-recorded.json`; 10 richieste ai servizi pubblici di routing) |
 | `npm run build:pages` | build statico della landing per GitHub Pages in `dist-pages/` (`npm run preview:pages` per provarlo in locale) |
 
-Lint non configurato (scelta per ridurre le dipendenze); TypeScript in modalità `strict`.
+Lint non configurato (scelta per ridurre le dipendenze); TypeScript in modalità `strict`. Le dipendenze a runtime sono otto: le ultime due, `maplibre-gl` e `@maplibre/maplibre-gl-leaflet`, servono alla mappa vettoriale e vengono scaricate dal browser a parte, solo quando compare una mappa (circa 450 kB compressi).
 
 ---
 
 ## Dati e servizi
 
-- **OpenStreetMap** (© OpenStreetMap contributors, ODbL): tutta l'Italia, dall'estratto [Geofabrik](https://download.geofabrik.de/europe/italy.html) filtrato in locale con `osmium`. Dati del 16/11/2026: 2.078.357 elementi (158.993 ostacoli noti, 540.616 possibili difficoltà, 129.844 elementi utili, 193.531 sentieri tenuti solo per l'analisi del percorso), divisi in 64.157 celle di circa 1,8 km di lato (`server/data/osm-tiles/`, ~690 MB, non nel repository). Il browser scarica solo le celle della zona guardata e quelle attraversate dal percorso. Nessun dato inventato. Le tile della mappa sono quelle di OpenStreetMap, desaturate via CSS.
+- **OpenStreetMap** (© OpenStreetMap contributors, ODbL): tutta l'Italia, dall'estratto [Geofabrik](https://download.geofabrik.de/europe/italy.html) filtrato in locale con `osmium`. Dati del 16/11/2026: 2.078.357 elementi (158.993 ostacoli noti, 540.616 possibili difficoltà, 129.844 elementi utili, 193.531 sentieri tenuti solo per l'analisi del percorso), divisi in 64.157 celle di circa 1,8 km di lato (`server/data/osm-tiles/`, ~690 MB, non nel repository). Il browser scarica solo le celle della zona guardata e quelle attraversate dal percorso. Nessun dato inventato.
 - **Dove i dati sono pochi lo si vede.** Solo 4.641 celle su 64.157 (i centri delle città) hanno almeno 50 elementi utili; 16.632 non ne hanno nessuno. La mappa tratteggia le zone con pochi dati o nessuno, una riga di testo dice quanti elementi ci sono nella zona guardata, e l'esito di un percorso avvisa quando si conosce il fondo per meno del 25% del tragitto.
 - **Senza i dati completi l'app parte lo stesso** con lo snapshot demo della zona universitaria di Pisa (`server/data/osm-pisa.json`, 24/10/2026, 1158 elementi) e lo dichiara nella legenda. I dati completi si pubblicano come allegato della release `osm-data`, rigenerato ogni lunedì da `.github/workflows/osm-data.yml`.
+- **Mappa di base**: [OpenFreeMap](https://openfreemap.org), stile "Liberty", disegnata nel browser da MapLibre GL (dati OpenStreetMap, © OpenMapTiles). Gratuita, senza chiave né registrazione, ma senza garanzie di servizio: se non risponde, o se il browser non ha WebGL, l'app torna da sola alle tile raster di OpenStreetMap desaturate via CSS. Nel tema scuro la stessa mappa viene invertita via CSS.
 - **Valhalla** (istanza pubblica FOSSGIS): percorsi, istruzioni di svolta, aggancio delle segnalazioni alla rete pedonale. **Nominatim**: ricerca indirizzi (1 richiesta al secondo, limitata all'Italia). **OSRM** (FOSSGIS): ripiego pedonale, dichiarato.
 - **Gemma 4** via Google AI Studio: lettura delle segnalazioni, risposta in JSON validata lato server.
 - **ElevenLabs**: Scribe v2 (trascrizione) e Flash v2.5 (sintesi), solo tramite il server. Nessun audio o trascrizione viene conservato.

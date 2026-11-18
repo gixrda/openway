@@ -6,7 +6,7 @@ OpenWay aiuta chi si muove in sedia a rotelle a orientarsi in Italia (è nato a 
 
 > OpenWay non dichiara mai un percorso "accessibile" o "sicuro". Mostra quello che i dati permettono di verificare: l'assenza di ostacoli noti non è una garanzia e nessun percorso è stato controllato di persona.
 
-Prototipo nato all'Hacktoberfest del GDG Pisa (ottobre 2026), secondo classificato come miglior progetto open source. Il progetto si chiamava *AccessGo*: il documento di partenza `AccessGo.md` conserva il vecchio nome. La demo pubblica è l'app di questo repository, pubblicata come contenitore (vedi [Pubblicare l'app](#pubblicare-lapp)). La cartella [`cloud/`](cloud/README.md) contiene un'edizione precedente e separata, ferma alla sola Pisa (https://accessogo.xyxzwb.chatgpt.site/): non segue più l'app principale. L'architettura è descritta in [ARCHITECTURE.md](ARCHITECTURE.md).
+Prototipo nato all'Hacktoberfest del GDG Pisa (ottobre 2026), secondo classificato come miglior progetto open source. Il progetto si chiamava *AccessGo*: il documento di partenza `AccessGo.md` conserva il vecchio nome. **Demo pubblica: <https://openway-q47u.onrender.com/>** (piano gratuito di Render: dopo una pausa la prima pagina può arrivare dopo circa un minuto, e le segnalazioni inviate non restano). È l'app di questo repository pubblicata come contenitore, vedi [Pubblicare l'app](#pubblicare-lapp). La cartella [`cloud/`](cloud/README.md) contiene un'edizione precedente e separata, ferma alla sola Pisa (https://accessogo.xyxzwb.chatgpt.site/): non segue più l'app principale. L'architettura è descritta in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -106,12 +106,12 @@ Dopo il deploy, scrivi l'indirizzo della demo in `DEMO_URL` (`src/landing/env.ts
 
 ### Su Render, piano gratuito
 
-Il file [`render.yaml`](render.yaml) descrive il servizio: un contenitore costruito dal `Dockerfile`, piano gratuito, regione di Francoforte, controllo di salute su `/api/status`. Questi passi non sono ancora stati eseguiti: il primo deploy dirà se un'immagine di 1,6 GB rientra nei limiti del piano gratuito.
+Il file [`render.yaml`](render.yaml) descrive il servizio: un contenitore costruito dal `Dockerfile`, piano gratuito, regione di Francoforte, controllo di salute su `/api/status`. La demo su <https://openway-q47u.onrender.com/> è stata pubblicata così il 18/11/2026: il primo build è durato meno di due minuti e l'immagine con i dati di tutta l'Italia rientra nel piano gratuito.
 
 1. **Dati.** Su GitHub: *Actions* → *Dati OSM* → *Run workflow* (ramo `main`). Quando finisce, nella pagina *Releases* compare `osm-data` con l'archivio `osm-tiles.tar.gz`. Si fa una volta sola: poi il workflow gira da solo ogni lunedì.
-2. **Account.** Registrati su [render.com](https://render.com) (si può entrare con l'account GitHub). Se viene chiesta una carta di credito, il piano gratuito non la addebita.
-3. **Servizio.** Apri <https://render.com/deploy?repo=https://github.com/gixrda/openway>: Render legge `render.yaml` e propone il servizio `openway`. Conferma. Il repository è pubblico, quindi non serve dare a Render l'accesso all'account GitHub.
-4. **Primo build.** Dura alcuni minuti: scarica i dati OSM e costruisce l'immagine. Se si ferma con `Dati non disponibili (… HTTP 404)`, manca la release del passo 1.
+2. **Account.** Registrati su [render.com](https://render.com) (si può entrare con l'account GitHub).
+3. **Servizio.** Apri <https://render.com/deploy?repo=https://github.com/gixrda/openway>: Render legge `render.yaml` e propone il servizio `openway`. Scrivi un nome in *Blueprint Name* (obbligatorio, a piacere) e premi *Deploy Blueprint*. Il repository è pubblico, quindi non serve dare a Render l'accesso all'account GitHub.
+4. **Primo build.** Dura un paio di minuti: scarica i dati OSM e costruisce l'immagine. Nella pagina del servizio lo stato passa a *Live* e compare l'indirizzo pubblico; il tipo di istanza deve essere *Free*. Se si ferma con `Dati non disponibili (… HTTP 404)`, manca la release del passo 1.
 5. **Controllo.** Apri l'indirizzo assegnato (`https://openway….onrender.com`). Nella legenda della mappa (bottone dei livelli) non deve comparire "Su questo server sono caricati solo i dati della zona universitaria di Pisa". Calcola un percorso in una città qualsiasi.
 6. **Chiavi (facoltative).** Nella scheda *Environment* del servizio aggiungi `GEMINI_API_KEY`, `ELEVENLABS_API_KEY`, `ADMIN_TOKEN`. Render riavvia il servizio da solo.
 7. **Landing.** Scrivi l'indirizzo in `DEMO_URL` (`src/landing/env.ts`) e apri una pull request.

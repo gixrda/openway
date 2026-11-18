@@ -2,6 +2,7 @@ import type L from 'leaflet';
 import { useEffect, useState } from 'react';
 import type { OsmFeature, Report } from '../../shared/types.ts';
 import { Icon } from '../components/Icon.tsx';
+import { useT } from '../i18n/index.ts';
 import { formatDistance, formatDuration } from '../lib/analysis.ts';
 import { verdictOf } from '../lib/verdict.ts';
 import { APP_URL, SCENARIOS, useCopy, type Scenario } from './copy.ts';
@@ -16,6 +17,7 @@ const appLink = (s: Scenario) => `${APP_URL}?from=${s.from.join(',')}&to=${s.to.
 export function DemoSection({ features, reports }: { features: OsmFeature[]; reports: Report[] }) {
   const copy = useCopy();
   const t = copy.demo;
+  const about = useT().route.about;
   const [scenario, setScenario] = useState<Scenario>(SCENARIOS[0]);
   const [attempt, setAttempt] = useState(0);
   const [map, setMap] = useState<L.Map | null>(null);
@@ -66,7 +68,7 @@ export function DemoSection({ features, reports }: { features: OsmFeature[]; rep
                 <>
                   <div className={`ow-verdict ow-verdict--${verdict.tone}`}>
                     <p className="ow-verdict__title"><Icon name={verdict.tone === 'warn' ? 'warning' : 'check'} size={16} />{verdict.title}</p>
-                    <p className="ow-verdict__meta">{formatDistance(route.distanceM)}{route.durationS ? ` · circa ${formatDuration(route.durationS)}` : ''}</p>
+                    <p className="ow-verdict__meta">{formatDistance(route.distanceM)}{route.durationS ? ` · ${about(formatDuration(route.durationS))}` : ''}</p>
                     {route.safety?.choice && <p className="ow-verdict__text">{route.safety.choice}</p>}
                     {(!route.safety?.verifiable || route.mode !== 'wheelchair') && <p className="ow-verdict__text">{verdict.text}</p>}
                   </div>

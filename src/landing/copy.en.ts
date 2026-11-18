@@ -56,6 +56,7 @@ export const en: Copy = {
     loading: 'Calculating the example route…',
     error: 'The routing service is not responding right now. The known obstacles stay on the map.',
     note: 'Calculated just now for a wheelchair and compared with OpenStreetMap. No stretch has been checked in person.',
+    noteRecorded: 'Wheelchair route compared with OpenStreetMap. No stretch has been checked in person.',
     recorded: (date: string) => `Demo version: route recorded on ${date}, with no live calculation on this page.`,
     recordedFoot: 'The wheelchair routing service was not responding when this route was recorded. We are showing you an ordinary walking route.',
     notRecorded: 'This trip has not been recorded.',

@@ -55,9 +55,10 @@ export function useRoute(pair: { from: LatLngTuple; to: LatLngTuple } | null, at
     if (STATIC) {
       staticRoutes()
         .then((r) => {
-          const saved = r.routes[`${a.join(',')}|${b.join(',')}`];
+          const saved = r.routes[lang]?.[`${a.join(',')}|${b.join(',')}`];
           if (!live) return;
-          // L'avviso di ripiego è stato registrato in italiano: qui lo si ripete nella lingua della pagina.
+          // I percorsi sono registrati per lingua. Per un ripiego a piedi la landing usa comunque il proprio testo,
+          // così l'avviso è lo stesso anche se il servizio ha risposto con parole diverse.
           const route = saved?.mode === 'foot_fallback' && saved.notice ? { ...saved, notice: getCopy().routeCard.recordedFoot } : saved;
           setState(route ? { status: 'ready', route, recordedAt: r.recordedAt } : { status: 'error', message: getCopy().routeCard.notRecorded });
         })

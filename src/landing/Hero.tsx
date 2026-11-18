@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import type { GeocodeResult, OsmFeature, Report } from '../../shared/types.ts';
 import { api } from '../api.ts';
 import { Icon } from '../components/Icon.tsx';
+import { useT } from '../i18n/index.ts';
 import { formatDistance, formatDuration } from '../lib/analysis.ts';
 import { verdictOf } from '../lib/verdict.ts';
 import { APP_URL, SCENARIOS, useCopy } from './copy.ts';
@@ -115,6 +116,7 @@ function useNarrow(): boolean {
 export function Hero({ features, reports }: { features: OsmFeature[]; reports: Report[] }) {
   const copy = useCopy();
   const t = copy.hero;
+  const about = useT().route.about;
   const [map, setMap] = useState<L.Map | null>(null);
   const [exploring, setExploring] = useState(false);
   const narrow = useNarrow();
@@ -283,10 +285,12 @@ export function Hero({ features, reports }: { features: OsmFeature[]; reports: R
           ) : verdict && route && (
             <div className={`ow-verdict ow-verdict--${verdict.tone}`}>
               <p className="ow-verdict__title"><Icon name={verdict.tone === 'warn' ? 'warning' : 'check'} size={16} />{verdict.title}</p>
-              <p className="ow-verdict__meta">{formatDistance(route.distanceM)}{route.durationS ? ` · circa ${formatDuration(route.durationS)}` : ''}</p>
+              <p className="ow-verdict__meta">{formatDistance(route.distanceM)}{route.durationS ? ` · ${about(formatDuration(route.durationS))}` : ''}</p>
             </div>
           )}
-          <p className="ow-routecard__note">{route && route.mode !== 'wheelchair' && verdict ? verdict.text : copy.routeCard.note}</p>
+          <p className="ow-routecard__note">{route && route.mode !== 'wheelchair' && verdict ? verdict.text
+            // "Calcolato ora" vale solo con il server: sulla landing statica il percorso è quello registrato.
+            : state.status === 'ready' && state.recordedAt ? copy.routeCard.noteRecorded : copy.routeCard.note}</p>
           {state.status === 'ready' && state.recordedAt && <p className="ow-routecard__note">{copy.routeCard.recorded(new Date(state.recordedAt).toLocaleDateString(copy.locale))}</p>}
           {route && !reduceMotion && branches.length > 0 && <p className="ow-routecard__note">{copy.routeCard.branchesNote}</p>}
           {route && !reduceMotion && userPaused && !destination && !exploring && (

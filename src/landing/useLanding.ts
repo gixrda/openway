@@ -73,7 +73,14 @@ export function useRoute(pair: { from: LatLngTuple; to: LatLngTuple } | null, at
   return state;
 }
 
-/** Punti di attenzione con la stessa analisi dell'app, numerati nell'ordine di percorrenza. */
-export function useAlerts(route: RouteResult | null, features: OsmFeature[], reports: Report[]): RouteAlert[] {
-  return useMemo(() => route ? routeAlerts(route, analyzeRoute(route.coords, features, reports)) : [], [route, features, reports]);
+/**
+ * Punti di attenzione con la stessa analisi dell'app, numerati nell'ordine di percorrenza,
+ * e numero di ostacoli noti accanto al percorso (non numerati: entrano solo nell'esito).
+ */
+export function useAlerts(route: RouteResult | null, features: OsmFeature[], reports: Report[]): { alerts: RouteAlert[]; nearby: number } {
+  return useMemo(() => {
+    if (!route) return { alerts: [], nearby: 0 };
+    const analysis = analyzeRoute(route.coords, features, reports, route.safety?.wayIds);
+    return { alerts: routeAlerts(route, analysis), nearby: analysis.nearby.length };
+  }, [route, features, reports]);
 }

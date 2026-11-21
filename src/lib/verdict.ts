@@ -6,7 +6,7 @@ import type { RouteAlert } from './alerts.ts';
 export const LOW_COVERAGE = 0.25;
 
 /** Esito in una frase: cosa deve sapere chi parte. Non dice mai "sicuro" o "accessibile". */
-export function verdictOf(route: RouteResult, alerts: RouteAlert[], coverage = 1): { tone: 'warn' | 'calm'; title: string; text: string } {
+export function verdictOf(route: RouteResult, alerts: RouteAlert[], coverage = 1, nearby = 0): { tone: 'warn' | 'calm'; title: string; text: string } {
   const v = t().verdict;
   if (route.mode === 'foot_fallback') {
     return { tone: 'warn', title: v.footOnlyTitle, text: `${route.notice ?? ''} ${v.footOnlyWarning}`.trim() };
@@ -17,6 +17,8 @@ export function verdictOf(route: RouteResult, alerts: RouteAlert[], coverage = 1
   if (alerts.length) {
     return { tone: 'warn', title: v.points(alerts.length), text: unverifiable ? v.notVerifiable : sparse ? `${v.listedBelow} ${sparse}` : v.listedBelow };
   }
+  // Ostacoli noti a pochi metri dal tracciato (`nearby`): niente sul percorso, ma non è un esito tranquillo.
+  if (nearby) return { tone: 'warn', title: v.nearbyTitle(nearby), text: [unverifiable ? v.notVerifiable : v.nearbyText, sparse].filter(Boolean).join(' ') };
   if (unverifiable) return { tone: 'warn', title: v.noKnown, text: sparse ? `${v.notVerifiable} ${sparse}` : v.notVerifiable };
   if (sparse) return { tone: 'warn', title: v.noKnown, text: sparse };
   return { tone: 'calm', title: v.noKnown, text: v.onlySidewalks };

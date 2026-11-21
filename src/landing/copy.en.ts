@@ -183,6 +183,7 @@ export const en: Copy = {
     alertsTitle: 'Along the route',
     noAlerts: 'No known obstacles along this route, in the available data.',
     more: (n: number) => `and ${n} more in the app`,
+    nearby: (n: number) => (n === 1 ? '1 known obstacle next to the route, to check on site' : `${n} known obstacles next to the route, to check on site`),
     at: (d: string) => `at ${d}`,
     mapLabel: 'Map of the chosen trip',
     scenarios: it.demo.scenarios.map((s) => ({ ...s, hint: SCENARIO_HINTS[s.id] ?? s.hint })),

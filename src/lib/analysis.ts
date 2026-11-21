@@ -1,11 +1,17 @@
-import { distToLine, projector, type XY } from '../../shared/geo.ts';
+import { distToLine, distToSegment, projector, type XY } from '../../shared/geo.ts';
 import { RULES } from '../../shared/rules.ts';
 import { t } from '../i18n/index.ts';
 import { nearM, obstaclePoint } from './reroute.ts';
 import type { LatLngTuple, OsmFeature, Report } from '../../shared/types.ts';
 
 export interface RouteAnalysis {
+  /** Ostacoli noti sul tracciato: sono i punti di attenzione numerati */
   known: OsmFeature[];
+  /**
+   * Ostacoli noti a pochi metri dal tracciato, su una via che il percorso non usa (es. la scala della metropolitana
+   * accanto al marciapiede): non si contano tra i punti di attenzione, ma restano in un elenco "da controllare sul posto".
+   */
+  nearby: OsmFeature[];
   possible: OsmFeature[];
   positive: OsmFeature[];
   /** Elementi sul percorso senza dati sufficienti (es. attraversamenti con cordolo non mappato) */
@@ -23,8 +29,13 @@ export type RouteObstacle =
   | { type: 'report'; report: Report; alongM: number };
 
 
-const POINT_M = 5; // distanza massima di un nodo (cordolo, barriera…) dal percorso
-const LINE_M = 4; // distanza massima tra percorso e una via mappata per considerarla "percorsa"
+// Il percorso è calcolato sulle vie di OpenStreetMap, quindi la sua linea coincide con quella delle vie che usa e passa
+// esattamente sui loro nodi: entro ON_M un elemento è "sul percorso". Le soglie più larghe (usate fino al 21/11/2026 per
+// decidere tutto) restano per l'elenco "accanto al percorso": lì finisce ciò che è vicino ma su un'altra via.
+const ON_M = 1; // scarto massimo tra il percorso e un elemento che gli sta sopra
+const POINT_M = 5; // un nodo (cordolo, barriera…) oltre ON_M ma entro questa distanza è "accanto"
+const LINE_M = 4; // una via mappata che resta entro questa distanza dal percorso senza esserne parte è "accanto"
+const FINE_M = 1; // passo con cui si misura quanta parte di una via mappata coincide con il percorso
 const REPORT_M = 15; // le posizioni scelte dagli utenti sono meno precise
 const STEP_M = 5; // passo di campionamento del percorso
 const GRID_M = 50; // lato delle caselle dell'indice dei campioni
@@ -68,13 +79,25 @@ function alongRoute(p: XY, line: XY[]): number {
   return at;
 }
 
+/** Numero della way di un elemento ("way/123" → 123), null per i nodi. */
+function wayNumber(id: string): number | null {
+  const m = /^way\/(\d+)$/.exec(id);
+  return m ? Number(m[1]) : null;
+}
+
 /**
  * Confronta un percorso con i dati OSM e le segnalazioni.
- * Una via mappata conta come "percorsa" solo se il percorso le resta vicino per almeno 15 m
- * (o metà della sua lunghezza, se più corta): così un sentiero che si limita a incrociare il percorso non viene contato.
+ *
+ * Un nodo (cordolo, barriera, attraversamento) è sul percorso se la linea gli passa entro ON_M.
+ * Una via mappata (scale, tratto con un certo fondo…) è sul percorso se:
+ * - `wayIds` è disponibile (id delle way percorse, dalla verifica dei tratti del server) e contiene il suo id; oppure,
+ * - senza `wayIds`, coincide con il percorso (entro ON_M) per almeno 15 m o metà della sua lunghezza, se più corta:
+ *   così una via che si limita a incrociare il percorso, o che parte dal suo bordo, non viene contata.
+ * Gli ostacoli noti vicini ma non sul percorso (nodi entro POINT_M; vie entro LINE_M per 15 m o metà lunghezza)
+ * finiscono in `nearby`. Le altre informazioni vicine ma non sul percorso riguardano un'altra via e non si elencano.
  */
-export function analyzeRoute(route: LatLngTuple[], features: OsmFeature[], reports: Report[]): RouteAnalysis {
-  const empty: RouteAnalysis = { known: [], possible: [], positive: [], unknown: [], reports: [], coverage: 0, alongM: {} };
+export function analyzeRoute(route: LatLngTuple[], features: OsmFeature[], reports: Report[], wayIds?: readonly number[]): RouteAnalysis {
+  const empty: RouteAnalysis = { known: [], nearby: [], possible: [], positive: [], unknown: [], reports: [], coverage: 0, alongM: {} };
   if (route.length < 2) return empty;
   const xy = projector(route[0][0]);
   const routeXY = route.map(xy);
@@ -105,27 +128,63 @@ export function analyzeRoute(route: LatLngTuple[], features: OsmFeature[], repor
     return out.sort((x, y) => x - y);
   };
 
-  const result = { ...empty, known: [] as OsmFeature[], possible: [] as OsmFeature[], positive: [] as OsmFeature[], unknown: [] as OsmFeature[] };
+  /**
+   * Distanza di p dal percorso, guardando solo i tratti vicini (Infinity se nessuno è entro `max`).
+   * I campioni comprendono tutti i vertici: i segmenti tra campioni consecutivi sono il percorso stesso.
+   */
+  const routeDist = (p: XY, max: number): number => {
+    let best = Infinity;
+    for (const i of candidates([p], max + STEP_M)) {
+      if (i > 0) best = Math.min(best, distToSegment(p, samples[i - 1], samples[i]));
+      if (i + 1 < samples.length) best = Math.min(best, distToSegment(p, samples[i], samples[i + 1]));
+    }
+    return best;
+  };
+  /** Metri di una via mappata che coincidono con il percorso (entro ON_M), misurati lungo la via ogni FINE_M. */
+  const overlapM = (line: XY[]): number => {
+    const { pts } = sample(line, FINE_M);
+    return (pts.filter((p) => routeDist(p, ON_M) <= ON_M).length / pts.length) * lineLength(line);
+  };
+  const traversed = wayIds ? new Set(wayIds) : null;
+
+  const result = { ...empty, known: [] as OsmFeature[], nearby: [] as OsmFeature[], possible: [] as OsmFeature[], positive: [] as OsmFeature[], unknown: [] as OsmFeature[] };
   for (const f of features) {
     if (f.scope !== 'path') continue; // l'accessibilità di un negozio non è un ostacolo sul percorso
     let onRoute: boolean;
+    let along: number;
     if (f.geometry.type === 'point') {
       const p = xy(f.geometry.coords);
       // Un campione ogni STEP_M metri: se nessuno è entro POINT_M + STEP_M, il percorso non passa di lì.
       if (!candidates([p], POINT_M + STEP_M).length) continue;
-      onRoute = distToLine(p, routeXY) <= POINT_M;
-      if (onRoute) alongM[f.id] = alongRoute(p, routeXY);
+      const d = distToLine(p, routeXY);
+      if (d > POINT_M) continue;
+      onRoute = d <= ON_M;
+      along = alongRoute(p, routeXY);
     } else {
       const line = f.geometry.coords.map(xy);
       const near = candidates(line, LINE_M).filter((i) => distToLine(samples[i], line) <= LINE_M);
-      // Un incrocio perpendicolare copre al massimo ~2 campioni (10 m): serve una sovrapposizione maggiore.
-      onRoute = near.length > 0 && near.length * STEP_M >= Math.min(15, lineLength(line) / 2);
-      if (onRoute) {
-        for (const i of near) covered[i] = true;
-        alongM[f.id] = sampleAlong[near[0]];
+      const way = traversed ? wayNumber(f.id) : null;
+      if (way !== null && traversed!.has(way)) {
+        onRoute = true;
+      } else {
+        if (!near.length) continue;
+        const minM = Math.min(15, lineLength(line) / 2);
+        // Con gli id delle way la risposta è già "no"; senza, decide la coincidenza con la linea del percorso.
+        const overlap = way === null ? overlapM(line) : 0;
+        onRoute = overlap > 0 && overlap >= minM;
+        // Accanto: un incrocio perpendicolare copre al massimo ~2 campioni (10 m), serve una vicinanza più lunga.
+        if (!onRoute && near.length * STEP_M < minM) continue;
       }
+      along = near.length ? sampleAlong[near[0]] : alongRoute(line[0], routeXY);
+      // Copertura dei dati: contano solo i tratti del percorso che stanno sopra la via, non quelli che le passano accanto.
+      if (onRoute) for (const i of near) if (distToLine(samples[i], line) <= ON_M) covered[i] = true;
     }
-    if (!onRoute) continue;
+    if (!onRoute) {
+      // Vicino ma su un'altra via: un ostacolo noto resta da controllare sul posto, il resto non riguarda questo percorso.
+      if (f.certainty === 'known_obstacle') { result.nearby.push(f); alongM[f.id] = along; }
+      continue;
+    }
+    if (f.certainty !== 'info' || f.geometry.type === 'point') alongM[f.id] = along;
     if (f.certainty === 'known_obstacle') result.known.push(f);
     else if (f.certainty === 'possible_issue') result.possible.push(f);
     else if (f.certainty === 'positive_info') result.positive.push(f);
@@ -137,6 +196,7 @@ export function analyzeRoute(route: LatLngTuple[], features: OsmFeature[], repor
     && distToLine(reportXY(r), routeXY) <= nearM(r));
   for (const r of result.reports) alongM[r.id] = alongRoute(reportXY(r), routeXY);
   result.coverage = covered.filter(Boolean).length / samples.length;
+  result.nearby.sort((a, b) => alongM[a.id] - alongM[b.id]);
   return { ...result, alongM };
 }
 

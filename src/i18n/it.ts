@@ -98,6 +98,9 @@ export const it = {
     rowWheelchair: 'Sedia a rotelle',
     rowFoot: 'A piedi',
     showFoot: 'Mostra il percorso a piedi sulla mappa',
+    /** Ostacoli noti vicini al tracciato ma su una via che il percorso non usa: non numerati, da controllare sul posto */
+    nearbyTitle: 'Accanto al percorso, da controllare sul posto',
+    nearbyHelp: 'Ostacoli noti a pochi metri dal tracciato, su una via che il percorso non usa secondo i dati della mappa. Non sono contati tra i punti di attenzione.',
     listPossible: 'Possibili difficoltà minori',
     listUnknown: 'Attraversamenti senza informazioni sullo scivolo',
     listPositive: 'Elementi utili',
@@ -121,6 +124,8 @@ export const it = {
     points: (n: number) => (n === 1 ? '1 punto di attenzione' : `${n} punti di attenzione`),
     listedBelow: 'Li trovi qui sotto e numerati sulla mappa.',
     noKnown: 'Nessun ostacolo noto',
+    nearbyTitle: (n: number) => (n === 1 ? '1 ostacolo noto accanto al percorso' : `${n} ostacoli noti accanto al percorso`),
+    nearbyText: 'Secondo i dati della mappa il percorso non ci passa sopra: controlla sul posto.',
     onlySidewalks: 'Secondo i dati della mappa passa solo su marciapiedi e zone pedonali.',
     fewData: (percent: number) => `Qui la mappa ha pochi dati: sappiamo com'è il fondo solo per il ${percent}% del percorso. Possono esserci ostacoli non segnati.`,
   },

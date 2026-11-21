@@ -23,8 +23,8 @@ export function DemoSection({ features, reports }: { features: OsmFeature[]; rep
   const [map, setMap] = useState<L.Map | null>(null);
   const state = useRoute(scenario, attempt);
   const route = state.status === 'ready' ? state.route : null;
-  const alerts = useAlerts(route, features, reports);
-  const verdict = route ? verdictOf(route, alerts) : null;
+  const { alerts, nearby } = useAlerts(route, features, reports);
+  const verdict = route ? verdictOf(route, alerts, 1, nearby) : null;
 
   useEffect(() => {
     if (!map) return;
@@ -85,6 +85,7 @@ export function DemoSection({ features, reports }: { features: OsmFeature[]; rep
                     </ol>
                   ) : <p className="ow-demo__none">{t.noAlerts}</p>}
                   {alerts.length > MAX_ALERTS && <p className="ow-alerts__more">{t.more(alerts.length - MAX_ALERTS)}</p>}
+                  {nearby > 0 && <p className="ow-alerts__more">{t.nearby(nearby)}</p>}
                 </>
               )}
               {state.status === 'ready' && state.recordedAt && <p className="ow-demo__none">{copy.routeCard.recorded(new Date(state.recordedAt).toLocaleDateString(copy.locale))}</p>}

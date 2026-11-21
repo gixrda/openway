@@ -287,13 +287,16 @@ export const it = {
       'Questa pagina non usa cookie né strumenti di statistica, e il carattere è servito dal sito stesso.',
       'Per mostrare la mappa il browser scarica i dati dai server di OpenFreeMap (o le immagini da quelli di OpenStreetMap, se la mappa vettoriale non è disponibile); se cerchi un luogo, il testo della ricerca va a Nominatim (OpenStreetMap). Tutti ricevono l’indirizzo IP di chi visita, come accade con ogni contenuto esterno.',
       STATIC
-        ? 'Il sito è ospitato da GitHub Pages, che registra gli accessi secondo la propria informativa.'
+        ? 'Il sito è ospitato da GitHub Pages, che registra gli accessi secondo la propria informativa. All’apertura la pagina manda anche una richiesta alla demo di OpenWay, ospitata da Render, per avviarla in anticipo: anche quel server riceve l’indirizzo IP di chi visita.'
         : 'Nell’app, le segnalazioni vengono salvate sul server del progetto con il punto scelto sulla mappa; le foto sono ridimensionate nel browser e senza dati GPS; audio e trascrizioni della voce non vengono conservati.',
     ],
     privacyLinks: [
       { href: 'https://osmfoundation.org/wiki/Privacy_Policy', label: 'Informativa OpenStreetMap' },
       { href: 'https://openfreemap.org/privacy/', label: 'Informativa OpenFreeMap' },
-      ...(STATIC ? [{ href: 'https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement', label: 'Informativa GitHub' }] : []),
+      ...(STATIC ? [
+        { href: 'https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement', label: 'Informativa GitHub' },
+        { href: 'https://render.com/privacy', label: 'Informativa Render' },
+      ] : []),
     ],
     credits: 'Dati mappa © OpenStreetMap contributors (ODbL). Mappa di base: OpenFreeMap, © OpenMapTiles. Percorsi: Valhalla e OSRM (FOSSGIS e.V.). Carattere: Atkinson Hyperlegible Next (OFL), servito dal sito.',
   },

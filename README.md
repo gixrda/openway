@@ -2,11 +2,22 @@
 
 <img src="public/logo.png" alt="" width="72" align="right">
 
+**Italiano** · [English version](README.en.md)
+
 OpenWay aiuta chi si muove in sedia a rotelle a orientarsi in Italia (è nato a Pisa, e i dati sono ricchi soprattutto nei centri delle città). Calcola un percorso adatto, lo confronta con i dati di accessibilità di OpenStreetMap e con le segnalazioni degli utenti, e dice chiaramente **cosa si sa, cosa è solo probabile e cosa manca**. Si usa con la mappa, con le dita o con la voce.
 
 > OpenWay non dichiara mai un percorso "accessibile" o "sicuro". Mostra quello che i dati permettono di verificare: l'assenza di ostacoli noti non è una garanzia e nessun percorso è stato controllato di persona.
 
 Prototipo nato all'Hacktoberfest del GDG Pisa (ottobre 2026), secondo classificato come miglior progetto open source. Il progetto si chiamava *AccessGo*: il documento di partenza `AccessGo.md` conserva il vecchio nome. **Demo pubblica: <https://openway-q47u.onrender.com/>** (piano gratuito di Render: dopo una pausa la prima pagina può arrivare dopo circa un minuto, e le segnalazioni inviate non restano). È l'app di questo repository pubblicata come contenitore, vedi [Pubblicare l'app](#pubblicare-lapp). La cartella [`cloud/`](cloud/README.md) contiene un'edizione precedente e separata, ferma alla sola Pisa (https://accessogo.xyxzwb.chatgpt.site/): non segue più l'app principale. L'architettura è descritta in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+![Un percorso calcolato a Pisa: il pannello elenca tre marciapiedi senza scivolo, numerati nell'ordine in cui si incontrano, e gli stessi numeri sono sulla mappa (interfaccia in inglese)](docs/screenshots/route.png)
+
+<p>
+  <img src="docs/screenshots/dark.png" width="49%" alt="Tema scuro, interfaccia in italiano: l'app spiega di aver scelto un percorso più lungo di 190 m per evitare 120 m di strada senza marciapiede">
+  <img src="docs/screenshots/coverage.png" width="49%" alt="Mappa della Toscana vista da lontano: il tratteggio copre le zone in cui OpenStreetMap ha pochi dati o nessuno">
+</p>
+
+*Schermate della demo pubblica, 21/11/2026. In alto: un percorso con i suoi punti di attenzione (interfaccia in inglese). In basso a sinistra: tema scuro e interfaccia in italiano, con il motivo della scelta del percorso. In basso a destra: da lontano, il tratteggio indica dove OpenStreetMap ha pochi dati o nessuno.*
 
 ---
 
@@ -120,7 +131,7 @@ Per pubblicare una versione nuova: *Manual Deploy* → *Deploy latest commit*. P
 
 Limiti del piano gratuito, da dire a chi usa la demo:
 
-- **Si addormenta** dopo 15 minuti senza visite: la prima pagina dopo una pausa arriva dopo circa un minuto.
+- **Si addormenta** dopo 15 minuti senza visite: la prima pagina dopo una pausa arriva dopo circa un minuto. Per ridurre l'attesa, la landing su GitHub Pages manda una richiesta alla demo appena viene aperta (`src/landing/prewarm.ts`): chi arriva dalla landing di solito la trova già sveglia.
 - **Le segnalazioni non restano.** Il disco è temporaneo: segnalazioni e foto inviate spariscono a ogni riavvio, cioè anche a ogni risveglio. Gli ostacoli di OpenStreetMap non sono toccati: stanno nell'immagine. Per conservarle serve un piano a pagamento con un disco montato su `/data`.
 - 750 ore di servizio al mese per account, 512 MB di memoria (il server ne usa circa 200).
 

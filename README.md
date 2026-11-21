@@ -120,7 +120,7 @@ Per pubblicare una versione nuova: *Manual Deploy* → *Deploy latest commit*. P
 
 Limiti del piano gratuito, da dire a chi usa la demo:
 
-- **Si addormenta** dopo 15 minuti senza visite: la prima pagina dopo una pausa arriva dopo circa un minuto.
+- **Si addormenta** dopo 15 minuti senza visite: la prima pagina dopo una pausa arriva dopo circa un minuto. Per ridurre l'attesa, la landing su GitHub Pages manda una richiesta alla demo appena viene aperta (`src/landing/prewarm.ts`): chi arriva dalla landing di solito la trova già sveglia.
 - **Le segnalazioni non restano.** Il disco è temporaneo: segnalazioni e foto inviate spariscono a ogni riavvio, cioè anche a ogni risveglio. Gli ostacoli di OpenStreetMap non sono toccati: stanno nell'immagine. Per conservarle serve un piano a pagamento con un disco montato su `/data`.
 - 750 ore di servizio al mese per account, 512 MB di memoria (il server ne usa circa 200).
 

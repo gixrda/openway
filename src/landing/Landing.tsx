@@ -4,6 +4,7 @@ import type { IconName } from '../lib/icons.ts';
 import { setLang, t, useLang } from '../i18n/index.ts';
 import { APP_URL, REPO_URL, useCopy } from './copy.ts';
 import { DemoSection } from './DemoSection.tsx';
+import { DEMO_URL, STATIC } from './env.ts';
 import { Hero } from './Hero.tsx';
 import { Benefits, Project } from './BenefitsProject.tsx';
 import { FeatureBento } from './FeatureBento.tsx';
@@ -11,6 +12,7 @@ import { BASE } from './staticData.ts';
 import { PinnedTitle } from './PinnedTitle.tsx';
 import { RouteRail } from './RouteRail.tsx';
 import { setupMotion } from './motion.ts';
+import { prewarmDemo } from './prewarm.ts';
 import { useMapData } from './useLanding.ts';
 
 function Logo() {
@@ -209,6 +211,14 @@ export function Landing() {
   }, [copy]);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => (root.current ? setupMotion(root.current) : undefined), []);
+  // Su GitHub Pages la demo vive su un altro server, che dorme quando nessuno la usa: la si sveglia subito (prewarm.ts).
+  useEffect(() => {
+    if (!STATIC) return;
+    let storage: Storage | undefined;
+    try { storage = window.sessionStorage; } catch { /* bloccato: prewarmDemo ne fa a meno */ }
+    const saveData = (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true;
+    prewarmDemo(DEMO_URL, { fetch: window.fetch.bind(window), storage, saveData });
+  }, []);
 
   return (
     <div ref={root} id="top">

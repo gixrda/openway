@@ -97,11 +97,12 @@ export default function App() {
   const viewFeatures = useViewFeatures(view, osmFailed);
   const routeFeatures = useRouteFeatures([route?.coords, footRoute?.coords], osmFailed);
   // Finché i dati lungo il percorso non sono arrivati non c'è un esito: "nessun ostacolo" si dice solo dopo averli letti.
-  const analysis = useMemo(() => route && routeFeatures ? analyzeRoute(route.coords, routeFeatures, reports) : null, [route, routeFeatures, reports]);
+  const analysis = useMemo(() => route && routeFeatures ? analyzeRoute(route.coords, routeFeatures, reports, route.safety?.wayIds) : null, [route, routeFeatures, reports]);
+  // Il percorso a piedi di confronto non passa dalla verifica dei tratti: senza id delle way decide la geometria.
   const footAnalysis = useMemo(() => footRoute && routeFeatures ? analyzeRoute(footRoute.coords, routeFeatures, reports) : null, [footRoute, routeFeatures, reports]);
-  // Sulla mappa: la zona guardata, più gli ostacoli noti del percorso e l'elemento selezionato (visibili anche da lontano).
+  // Sulla mappa: la zona guardata, più gli ostacoli noti sul percorso o accanto e l'elemento selezionato (visibili anche da lontano).
   const features = useMemo(() => {
-    const extra = [...(analysis?.known ?? []), ...(selection?.type === 'feature' ? [selection.feature] : [])];
+    const extra = [...(analysis?.known ?? []), ...(analysis?.nearby ?? []), ...(selection?.type === 'feature' ? [selection.feature] : [])];
     const seen = new Set(viewFeatures.map((f) => f.id));
     return [...viewFeatures, ...extra.filter((f: OsmFeature) => !seen.has(f.id) && seen.add(f.id))];
   }, [viewFeatures, analysis, selection]);

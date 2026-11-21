@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LatLngTuple } from '../shared/types.ts';
 import { getRoute } from '../server/routing.ts';
-import { classifyEdges, decodePolyline6, NOT_VERIFIABLE } from '../server/safety.ts';
+import { classifyEdges, decodePolyline6, NOT_VERIFIABLE, tracedWayIds } from '../server/safety.ts';
 import { RULES } from '../shared/rules.ts';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -21,7 +21,7 @@ function encodePolyline6(coords: LatLngTuple[]): string {
   return out;
 }
 
-type E = { use: string; road_class?: string; sidewalk?: string; m: number; name?: string };
+type E = { use: string; road_class?: string; sidewalk?: string; m: number; name?: string; way?: number };
 
 /** Un candidato: percorso con geometria propria e i tratti che trace_attributes vi riconoscerebbe. */
 function candidate(id: number, distanceM: number, edges: E[]) {
@@ -31,7 +31,7 @@ function candidate(id: number, distanceM: number, edges: E[]) {
 }
 
 /** Simula Valhalla: /route restituisce i candidati, /trace_attributes i tratti del candidato ricevuto. */
-function mockValhalla(cands: ReturnType<typeof candidate>[], opts: { traceDown?: boolean } = {}) {
+function mockValhalla(cands: ReturnType<typeof candidate>[], opts: { traceDown?: boolean; traceShiftLat?: number } = {}) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const body = JSON.parse(init!.body as string);
     if (url.endsWith('/route')) {
@@ -40,10 +40,11 @@ function mockValhalla(cands: ReturnType<typeof candidate>[], opts: { traceDown?:
     if (opts.traceDown) return new Response('down', { status: 503 });
     const c = cands.find((x) => Math.abs(x.coords[0][0] - body.shape[0].lat) < 1e-9)!;
     return Response.json({
-      shape: encodePolyline6(c.coords),
+      // traceShiftLat: Valhalla ha agganciato il percorso alla via parallela invece di seguirlo.
+      shape: encodePolyline6(c.coords.map(([lat, lng]): LatLngTuple => [lat + (opts.traceShiftLat ?? 0), lng])),
       edges: c.edges.map((e, i) => ({
         use: e.use, road_class: e.road_class ?? 'service_other', sidewalk: e.sidewalk ?? 'none', length: e.m / 1000,
-        ...(e.name ? { names: [e.name] } : {}), begin_shape_index: i, end_shape_index: i + 1,
+        ...(e.name ? { names: [e.name] } : {}), ...(e.way ? { way_id: e.way } : {}), begin_shape_index: i, end_shape_index: i + 1,
       })),
     });
   });
@@ -209,5 +210,40 @@ describe('decodePolyline6 / classifyEdges', () => {
     ], [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]]);
     expect(s.segments.map((x) => x.kind)).toEqual(['carriageway', 'main_road']);
     expect(s.carriagewayM).toBe(70);
+  });
+});
+
+describe('id delle way percorse', () => {
+  const edges: E[] = [{ ...footway(100), way: 11 }, { use: 'pedestrian_crossing', m: 8, way: 12 }, { ...footway(60), way: 11 }];
+
+  it('accompagnano il percorso quando la geometria riconosciuta coincide con la sua', async () => {
+    const fetchMock = mockValhalla([candidate(0, 168, edges)]);
+    const r = await getRoute(A, B, {});
+    expect(r.safety!.wayIds).toEqual([11, 12]);
+    const trace = fetchMock.mock.calls.find(([url]) => url.endsWith('/trace_attributes'))!;
+    expect(JSON.parse(trace[1]!.body as string).filters.attributes).toContain('edge.way_id');
+  });
+
+  it('mancano se la geometria riconosciuta si scosta dal percorso: la via potrebbe essere quella accanto', async () => {
+    mockValhalla([candidate(0, 168, edges)], { traceShiftLat: 0.00005 }); // ~5,5 m di fianco
+    const r = await getRoute(A, B, {});
+    expect(r.safety).toMatchObject({ checked: true, pedestrianM: 168 });
+    expect(r.safety!.wayIds).toBeUndefined();
+  });
+
+  it('mancano se anche un solo tratto è senza id, e se la verifica non risponde', async () => {
+    mockValhalla([candidate(0, 168, [...edges, footway(20)])]);
+    expect((await getRoute(A, B, {})).safety!.wayIds).toBeUndefined();
+    mockValhalla([candidate(0, 168, edges)], { traceDown: true });
+    expect((await getRoute(A, B, {})).safety).toMatchObject({ checked: false });
+  });
+
+  it('tracedWayIds tollera lo scarto di arrotondamento ma non un tratto in più o in meno', () => {
+    const coords: LatLngTuple[] = [[43.71, 10.4], [43.71, 10.401], [43.711, 10.401]];
+    const e = [{ way_id: 5 }, { way_id: 5 }, { way_id: 7 }];
+    expect(tracedWayIds(e, coords.map(([lat, lng]): LatLngTuple => [lat + 0.000001, lng]), coords)).toEqual([5, 7]);
+    expect(tracedWayIds(e, coords.slice(0, 2), coords)).toBeUndefined();
+    expect(tracedWayIds(e, [...coords, [43.711, 10.402]], coords)).toBeUndefined();
+    expect(tracedWayIds(e, [], coords)).toBeUndefined();
   });
 });

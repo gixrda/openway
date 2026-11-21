@@ -166,6 +166,17 @@ describe('esito con pochi dati', () => {
     expect(verdictOf(route, [], 0.8)).toMatchObject({ tone: 'calm', title: 'Nessun ostacolo noto' });
   });
 
+  it('un ostacolo noto accanto al percorso toglie l\'esito tranquillo, senza diventare un punto di attenzione', () => {
+    const v = verdictOf(route, [], 0.8, 2);
+    expect(v).toMatchObject({ tone: 'warn', title: '2 ostacoli noti accanto al percorso' });
+    expect(v.text).toMatch(/controlla sul posto/);
+    expect(verdictOf(route, [], 0.04, 1).text).toMatch(/controlla sul posto.*solo per il 4% del percorso/);
+    // Se il percorso non è verificabile resta quello l'avviso principale.
+    const unverified = verdictOf({ ...route, safety: { ...route.safety!, verifiable: false } }, [], 0.8, 1);
+    expect(unverified).toMatchObject({ tone: 'warn', title: '1 ostacolo noto accanto al percorso' });
+    expect(unverified.text).toMatch(/sufficientemente verificabile/);
+  });
+
   it('con pochi dati lungo il percorso lo dice, invece di rassicurare', () => {
     const v = verdictOf(route, [], 0.04);
     expect(v.tone).toBe('warn');
@@ -177,7 +188,7 @@ describe('esito con pochi dati', () => {
 describe('analisi su molti dati', () => {
   it('trova gli stessi elementi anche in mezzo a migliaia di elementi lontani', () => {
     const route: [number, number][] = [[43.716, 10.4], [43.716, 10.405]];
-    const near: OsmFeature = { id: 'near', source: 'osm', kind: 'kerb', certainty: 'known_obstacle', scope: 'path', geometry: { type: 'point', coords: [43.71602, 10.402] }, tags: {} };
+    const near: OsmFeature = { id: 'near', source: 'osm', kind: 'kerb', certainty: 'known_obstacle', scope: 'path', geometry: { type: 'point', coords: [43.716, 10.402] }, tags: {} };
     const far = Array.from({ length: 5000 }, (_, i): OsmFeature => ({
       id: `far-${i}`, source: 'osm', kind: 'surface', certainty: 'possible_issue', scope: 'path',
       geometry: { type: 'line', coords: [[43.72 + i * 1e-5, 10.4], [43.72 + i * 1e-5, 10.405]] }, tags: {},

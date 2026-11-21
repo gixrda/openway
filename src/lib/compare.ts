@@ -2,7 +2,7 @@ import type { OsmFeature } from '../../shared/types.ts';
 import type { RouteAnalysis } from './analysis.ts';
 
 export interface RouteComparison {
-  /** Ostacoli noti sul percorso a piedi che il percorso per sedia a rotelle non attraversa */
+  /** Ostacoli noti sul percorso a piedi che il percorso per sedia a rotelle non attraversa e non ha nemmeno accanto */
   avoidedKnown: OsmFeature[];
   avoidedPossible: OsmFeature[];
   /** Ostacoli noti sul percorso per sedia a rotelle che il percorso a piedi non attraversa (es. cordoli ignoti al router) */
@@ -21,7 +21,9 @@ export function compareRoutes(
     const ids = new Set(other.map((f) => f.id));
     return list.filter((f) => !ids.has(f.id));
   };
-  const avoidedKnown = notIn(foot.analysis.known, wheel.analysis.known);
+  // Un ostacolo accanto al percorso per sedia a rotelle non si dichiara "evitato": i due percorsi sono analizzati con
+  // informazioni diverse (solo quello per sedia a rotelle ha gli id delle way percorse) e nel dubbio non ci si prende il merito.
+  const avoidedKnown = notIn(foot.analysis.known, [...wheel.analysis.known, ...wheel.analysis.nearby]);
   const avoidedPossible = notIn(foot.analysis.possible, wheel.analysis.possible);
   const addedKnown = notIn(wheel.analysis.known, foot.analysis.known);
   const extraM = wheel.distanceM - foot.distanceM;

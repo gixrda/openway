@@ -167,7 +167,7 @@ function RouteSummary({ route, analysis, onSelect, onFocus, onPosition, compare 
   const t = useT();
   const r = t.route;
   const alerts = routeAlerts(route, analysis);
-  const v = verdictOf(route, alerts, analysis.coverage);
+  const v = verdictOf(route, alerts, analysis.coverage, analysis.nearby.length);
   const foot = route.mode === 'wheelchair' && compare.footRoute && compare.footAnalysis ? compare.footRoute : null;
   const c = foot ? compareRoutes({ distanceM: route.distanceM, analysis }, { distanceM: foot.distanceM, analysis: compare.footAnalysis! }) : null;
   const s = route.safety;
@@ -222,6 +222,23 @@ function RouteSummary({ route, analysis, onSelect, onFocus, onPosition, compare 
             ))}
           </ol>
         </section>
+      )}
+
+      {analysis.nearby.length > 0 && (
+        <details className="more nearby">
+          <summary>{r.nearbyTitle} <span className="count">{analysis.nearby.length}</span></summary>
+          <p className="field__help">{r.nearbyHelp}</p>
+          <ul className="plain-list">
+            {analysis.nearby.map((f) => (
+              <li key={f.id}>
+                <button type="button" onClick={() => onSelect({ type: 'feature', feature: f })}>
+                  <span>{osmLabel(f)}{f.name ? ` · ${f.name}` : ''}</span>
+                  <span className="alerts__where">{r.at(formatDistance(analysis.alongM[f.id] ?? 0))}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {route.mode === 'wheelchair' && <NavigationPanel route={route} onPosition={onPosition} />}

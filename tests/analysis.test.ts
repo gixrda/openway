@@ -23,14 +23,80 @@ function report(id: string, lat: number, lng: number, status: Report['status'] =
 describe('analyzeRoute', () => {
   it('rileva i nodi sul percorso e ignora quelli lontani', () => {
     const a = analyzeRoute(route, [
-      point('on', LAT + 0.00002, 10.402, 'known_obstacle'),
+      point('on', LAT + 0.000005, 10.402, 'known_obstacle'), // ~0,5 m: il percorso passa sui nodi delle vie che usa
       point('far', LAT + 0.0003, 10.402, 'known_obstacle'),
       point('fav', LAT, 10.403, 'positive_info'),
       point('crossing', LAT, 10.404, 'info'),
     ], []);
     expect(a.known.map((f) => f.id)).toEqual(['on']);
+    expect(a.nearby).toEqual([]);
     expect(a.positive.map((f) => f.id)).toEqual(['fav']);
     expect(a.unknown.map((f) => f.id)).toEqual(['crossing']);
+  });
+
+  it('un ostacolo noto a pochi metri dal tracciato non è sul percorso, ma resta tra quelli accanto', () => {
+    const a = analyzeRoute(route, [
+      point('accanto', LAT + 0.00003, 10.402, 'known_obstacle'), // ~3,3 m: sul marciapiede di fianco
+      point('lontano', LAT + 0.00006, 10.402, 'known_obstacle'), // ~6,6 m: oltre la soglia
+      point('scivolo-accanto', LAT + 0.00003, 10.403, 'positive_info'),
+      point('attraversamento-accanto', LAT + 0.00003, 10.404, 'info'),
+    ], []);
+    expect(a.known).toEqual([]);
+    expect(a.nearby.map((f) => f.id)).toEqual(['accanto']);
+    // Le altre informazioni vicine riguardano un'altra via: non si elencano come se fossero sul percorso.
+    expect(a.positive).toEqual([]);
+    expect(a.unknown).toEqual([]);
+    expect(a.alongM.accanto).toBeGreaterThan(155);
+    expect(a.alongM.accanto).toBeLessThan(165);
+  });
+
+  it('senza id delle way: una scala è sul percorso solo se coincide con il tracciato', () => {
+    const steps = (id: string, coords: LatLngTuple[]) => ({ ...line(id, coords, 'known_obstacle'), kind: 'steps' as const });
+    const a = analyzeRoute(route, [
+      steps('percorsa', [[LAT, 10.4020], [LAT, 10.4021]]), // 8 m sulla linea del percorso
+      steps('parallela', [[LAT + 0.00002, 10.4030], [LAT + 0.00002, 10.4031]]), // 8 m, a ~2,2 m di fianco
+      steps('laterale', [[LAT, 10.4040], [LAT + 0.00005, 10.4040]]), // 5,5 m, parte dal bordo del percorso e scende di lato
+      steps('incrocio', [[LAT - 0.0003, 10.4045], [LAT + 0.0003, 10.4045]]), // 66 m, attraversa soltanto
+    ], []);
+    expect(a.known.map((f) => f.id)).toEqual(['percorsa']);
+    expect(a.nearby.map((f) => f.id)).toEqual(['parallela', 'laterale']);
+  });
+
+  it('con gli id delle way percorse decide l\'id, non la vicinanza', () => {
+    // Due scale disegnate sulla stessa linea del percorso (es. la scala della metropolitana sotto la piazza):
+    // la geometria non le distingue, l'elenco delle way percorse sì.
+    const features = [
+      { ...line('way/10', [[LAT, 10.4020], [LAT, 10.4021]], 'known_obstacle'), kind: 'steps' as const },
+      { ...line('way/11', [[LAT, 10.4030], [LAT, 10.4031]], 'known_obstacle'), kind: 'steps' as const },
+      line('way/12', [[LAT + 0.00002, 10.401], [LAT + 0.00002, 10.404]], 'possible_issue'), // carreggiata parallela
+      line('way/13', [[LAT, 10.4005], [LAT, 10.4045]], 'possible_issue'),
+    ];
+    const a = analyzeRoute(route, features, [], [10, 13, 99]);
+    expect(a.known.map((f) => f.id)).toEqual(['way/10']);
+    expect(a.nearby.map((f) => f.id)).toEqual(['way/11']);
+    expect(a.possible.map((f) => f.id)).toEqual(['way/13']);
+    // Senza id (percorso a piedi di confronto, servizio di verifica non disponibile) decide la geometria.
+    const b = analyzeRoute(route, features, []);
+    expect(b.known.map((f) => f.id)).toEqual(['way/10', 'way/11']);
+    expect(b.possible.map((f) => f.id)).toEqual(['way/13']);
+  });
+
+  it('una way percorsa per pochi metri è sul percorso se lo dice il suo id', () => {
+    // Il percorso usa solo i primi 12 m di una via lunga: la sola geometria (meno di 15 m in comune) non basta
+    // per dirla percorsa, e l'ostacolo resta tra quelli accanto, da controllare sul posto.
+    const lunga = line('way/20', [[LAT, 10.40485], [LAT, 10.405], [LAT + 0.001, 10.405]], 'known_obstacle');
+    expect(analyzeRoute(route, [lunga], [], [20]).known.map((f) => f.id)).toEqual(['way/20']);
+    const senzaId = analyzeRoute(route, [lunga], []);
+    expect(senzaId.known).toEqual([]);
+    expect(senzaId.nearby.map((f) => f.id)).toEqual(['way/20']);
+  });
+
+  it('la copertura conta solo le vie percorse, non quelle di fianco', () => {
+    const parallela = line('way/30', [[LAT + 0.00002, 10.400], [LAT + 0.00002, 10.405]], 'info');
+    expect(analyzeRoute(route, [parallela], []).coverage).toBe(0);
+    expect(analyzeRoute(route, [parallela], [], [1]).coverage).toBe(0);
+    const percorsa = line('way/31', [[LAT, 10.400], [LAT, 10.405]], 'info');
+    expect(analyzeRoute(route, [percorsa], [], [31]).coverage).toBe(1);
   });
 
   it("non conta l'accessibilità dei luoghi come ostacolo sul percorso", () => {

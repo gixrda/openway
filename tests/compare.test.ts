@@ -4,9 +4,15 @@ import type { RouteAnalysis } from '../src/lib/analysis.ts';
 import { compareRoutes } from '../src/lib/compare.ts';
 
 const f = (id: string): OsmFeature => ({ id, source: 'osm', kind: 'steps', certainty: 'known_obstacle', scope: 'path', label: 'Scale', geometry: { type: 'point', coords: [43.7, 10.4] }, tags: {} });
-const a = (known: OsmFeature[], possible: OsmFeature[] = []): RouteAnalysis => ({ known, possible, positive: [], unknown: [], reports: [], coverage: 0.5, alongM: {} });
+const a = (known: OsmFeature[], possible: OsmFeature[] = [], nearby: OsmFeature[] = []): RouteAnalysis => ({ known, nearby, possible, positive: [], unknown: [], reports: [], coverage: 0.5, alongM: {} });
 
 describe('compareRoutes', () => {
+  it('non dichiara evitato un ostacolo che il percorso per sedia a rotelle ha accanto', () => {
+    // La scala è sul percorso a piedi (deciso dalla geometria) e accanto a quello per sedia a rotelle (deciso dagli id delle way).
+    const c = compareRoutes({ distanceM: 300, analysis: a([], [], [f('scala-metro')]) }, { distanceM: 290, analysis: a([f('scala-metro'), f('scala-lontana')]) });
+    expect(c.avoidedKnown.map((x) => x.id)).toEqual(['scala-lontana']);
+  });
+
   it('trova gli ostacoli evitati e il costo in distanza', () => {
     const c = compareRoutes({ distanceM: 289, analysis: a([]) }, { distanceM: 137, analysis: a([f('steps1')], [f('sett')]) });
     expect(c.avoidedKnown.map((x) => x.id)).toEqual(['steps1']);

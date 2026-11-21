@@ -176,6 +176,8 @@ export const it = {
     alertsTitle: 'Lungo il percorso',
     noAlerts: 'Nessun ostacolo noto lungo questo percorso, nei dati disponibili.',
     more: (n: number) => `e altri ${n} nell’app`,
+    /** Ostacoli noti a pochi metri dal tracciato, su una via che il percorso non usa: non numerati */
+    nearby: (n: number) => (n === 1 ? '1 ostacolo noto accanto al percorso, da controllare sul posto' : `${n} ostacoli noti accanto al percorso, da controllare sul posto`),
     at: (d: string) => `a ${d}`,
     mapLabel: 'Mappa del tragitto scelto',
     scenarios: [

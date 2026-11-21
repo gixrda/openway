@@ -6,6 +6,7 @@ import { createApi } from './server/api.ts';
 import { ensureTiles, writeLandingTiles } from './server/tiles.ts';
 import { cellsAlongLine } from './shared/tiles.ts';
 import { it as landingCopy } from './src/landing/copy.it.ts';
+import { DEMO_URL } from './src/landing/env.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const osmDir = `${root}server/data/osm-tiles`;
@@ -20,8 +21,9 @@ const PAGES_CSP = [
   "style-src 'self' 'unsafe-inline'", // stili inline di Leaflet e delle animazioni
   "font-src 'self'",
   "img-src 'self' data: blob: https://tile.openstreetmap.org",
-  // Nominatim per la ricerca; stile, tile, caratteri e icone della mappa vettoriale da OpenFreeMap.
-  "connect-src 'self' https://nominatim.openstreetmap.org https://tiles.openfreemap.org",
+  // Nominatim per la ricerca; stile, tile, caratteri e icone della mappa vettoriale da OpenFreeMap;
+  // la demo pubblica, che la landing sveglia in anticipo con una richiesta (src/landing/prewarm.ts).
+  `connect-src 'self' https://nominatim.openstreetmap.org https://tiles.openfreemap.org${DEMO_URL ? ` ${new URL(DEMO_URL).origin}` : ''}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'none'",

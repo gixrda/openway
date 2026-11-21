@@ -93,7 +93,7 @@ src/
   styles.css       design system dell'app (variabili CSS, vetro, tema chiaro/scuro)
   markers.css      marker della mappa, condivisi tra app e landing
   landing/         landing page (/landing/, landing/index.html): hero con mappa, demo dei percorsi, testi in copy.it.ts e copy.en.ts
-tests/             Vitest (228 test), senza rete: i servizi esterni sono simulati
+tests/             Vitest (232 test), senza rete: i servizi esterni sono simulati
 scripts/           build-osm (dati di tutta l'Italia), download-osm (dati già pronti), build-region (confine), osm-extract (estratto Geofabrik e osmium), fetch-osm (snapshot demo), check-gemma (prova dal vivo dell'AI)
 cloud/             edizione precedente e separata (Cloudflare Workers + D1, solo Pisa): non segue più l'app principale, vedi cloud/README.md
 Dockerfile         immagine dell'app completa per la demo pubblica (dati OSM scaricati dalla release osm-data)
@@ -245,6 +245,6 @@ L'accessibilità dei luoghi (`wheelchair=*` su negozi ed edifici) è un livello 
 
 ## Test e verifica
 
-- `npm test`: 228 test Vitest senza rete (servizi esterni simulati). Coprono classificazione OSM, griglia e sentieri, confine regionale, analisi del percorso, routing sicuro e i 7 scenari di ricalcolo, regole, AI e fallback, voce, API.
+- `npm test`: 232 test Vitest senza rete (servizi esterni simulati). Coprono classificazione OSM, griglia e sentieri, confine regionale, analisi del percorso, routing sicuro e i 7 scenari di ricalcolo, regole, AI e fallback, voce, API.
 - Prove dal vivo (non automatizzate nel repository): `npm run check:ai` per Gemma; script Playwright con microfono simulato per dettatura e guida vocale; i cinque percorsi demo del README.
 - Edizione `cloud/`: test propri (`cd cloud && npm test`), vedi `cloud/README.md`.

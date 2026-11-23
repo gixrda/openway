@@ -37,9 +37,11 @@ export class PermanentError extends Error {}
 
 /** Motivo di un errore di rete in una riga: `fetch failed` da solo non dice nulla, il codice sta in `cause`. */
 export function failureReason(e: unknown): string {
-  const err = e as { message?: string; cause?: { code?: string; errors?: { code?: string }[] } };
+  const err = e as { message?: string; cause?: { code?: string; message?: string; errors?: { code?: string }[] } };
   const codes = [err.cause?.code, ...(err.cause?.errors ?? []).map((x) => x.code)].filter(Boolean);
-  return [err.message ?? String(e), ...new Set(codes)].join(' · ');
+  // Senza un codice (es. porta non ammessa) resta almeno il messaggio della causa.
+  const details = codes.length ? [...new Set(codes)] : [err.cause?.message].filter(Boolean);
+  return [err.message ?? String(e), ...details].join(' · ');
 }
 
 /**

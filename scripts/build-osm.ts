@@ -16,11 +16,12 @@ import { cached, ensureExtract, osmium, root } from './osm-extract.ts';
 // Stessi criteri della query Overpass in server/osm.ts (i nodi delle way vengono inclusi da osmium).
 const FILTERS = ['w/highway=footway,pedestrian,path,steps', 'w/sidewalk', 'n/kerb', 'n/highway=crossing', 'n/barrier', 'nw/wheelchair'];
 
-const pbf = await ensureExtract();
+const { pbf, source, timestamp: declared } = await ensureExtract();
 osmium('tags-filter', '-O', '-o', cached('filtered.osm.pbf'), pbf, ...FILTERS);
 osmium('export', '-O', '-f', 'geojsonseq', '-x', 'print_record_separator=false', '--add-unique-id=type_id',
   '-o', cached('filtered.geojsonseq'), cached('filtered.osm.pbf'));
-const timestamp = /osmosis_replication_timestamp=(\S+)/.exec(osmium('fileinfo', pbf))?.[1]
+// Data dei dati: quella scritta nel file, poi quella dichiarata dalla sorgente, infine la data del download.
+const timestamp = /osmosis_replication_timestamp=(\S+)/.exec(osmium('fileinfo', pbf))?.[1] ?? declared
   ?? (await stat(pbf)).mtime.toISOString();
 
 // Stessa normalizzazione e classificazione dello snapshot Overpass, un elemento alla volta.
@@ -52,7 +53,7 @@ for await (const line of createInterface({ input: createReadStream(cached('filte
 }
 
 const { index, sizes } = await writer.finish({
-  source: 'OpenStreetMap contributors (ODbL), estratto Geofabrik "Italy"',
+  source: `OpenStreetMap contributors (ODbL), estratto ${source} "Italy"`,
   fetchedAt: timestamp,
   scope: 'full',
 });

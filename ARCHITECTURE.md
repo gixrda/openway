@@ -189,7 +189,7 @@ flowchart LR
 
 I dati coprono tutta l'Italia. `npm run osm:build` (`scripts/build-osm.ts`) li costruisce così:
 
-1. scarica l'estratto Geofabrik dell'Italia (2,3 GB; Overpass a questa scala risponde con errori e timeout già sulla sola Toscana);
+1. scarica l'estratto Geofabrik dell'Italia (2,3 GB; Overpass a questa scala risponde con errori e timeout già sulla sola Toscana). Se il server rifiuta la connessione il download riprova fino a 5 volte in circa 18 minuti, prima di far fallire il build;
 2. `osmium tags-filter` tiene gli stessi oggetti della vecchia query Overpass (way pedonali, way con `sidewalk`, nodi `kerb`/`crossing`/`barrier`, tutto ciò che ha `wheelchair`);
 3. `osmium export` scrive un elemento per riga; quelli fuori dall'area dell'app (`inArea`, l'estratto sborda di poco oltre confine) si scartano;
 4. `normalizeOverpass` (stessa classificazione di prima) → griglia, scritta da `TileWriter` una zona alla volta: due milioni di elementi non stanno comodi in memoria.

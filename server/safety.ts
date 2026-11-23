@@ -1,4 +1,5 @@
 import type { LatLngTuple, RouteResult, RouteSafety, SafetySegment } from '../shared/types.ts';
+import { distToLine, projector } from '../shared/geo.ts';
 import { HttpError, USER_AGENT } from './errors.ts';
 import { m, MESSAGES } from './messages.ts';
 
@@ -11,7 +12,7 @@ import { m, MESSAGES } from './messages.ts';
 
 type Edge = {
   use?: string; road_class?: string; sidewalk?: string; length?: number; names?: string[];
-  begin_shape_index?: number; end_shape_index?: number;
+  begin_shape_index?: number; end_shape_index?: number; way_id?: number;
 };
 
 // Infrastruttura separata dal traffico (o zone residenziali a priorità pedonale: living_street).
@@ -27,6 +28,8 @@ const ACCESS_M = 20;
 const NOISE_M = 3;
 // Si accettano fino a 2 m di percorso in più per ogni metro di carreggiata senza marciapiede evitato.
 const DETOUR_PER_CARRIAGEWAY_M = 2;
+// Scarto massimo tra la geometria riconosciuta da trace_attributes e quella del percorso perché gli id delle way valgano.
+const TRACE_MATCH_M = 1;
 
 /** Testo italiano (lingua di riferimento); a chi usa l'app arriva quello della lingua della richiesta. */
 export const NOT_VERIFIABLE = MESSAGES.it.notVerifiable;
@@ -82,6 +85,22 @@ export function classifyEdges(edges: Edge[], shape: LatLngTuple[]): RouteSafety 
   };
 }
 
+/**
+ * Id delle way percorse, senza doppioni. undefined se la geometria riconosciuta si scosta dal percorso: quando
+ * Valhalla non riesce a seguire il percorso tratto per tratto lo aggancia alla rete "a occhio" e può finire sulla via
+ * parallela (misurato il 21/11/2026: fino a 9 m di scarto in 3 percorsi su 16). In quel caso gli id non dicono dove si passa.
+ */
+export function tracedWayIds(edges: Edge[], shape: LatLngTuple[], coords: LatLngTuple[]): number[] | undefined {
+  const ids = edges.map((e) => e.way_id);
+  if (!ids.every((id): id is number => typeof id === 'number' && Number.isInteger(id))) return undefined;
+  if (!shape.length || !coords.length) return undefined;
+  const xy = projector(coords[0][0]);
+  const [a, b] = [shape.map(xy), coords.map(xy)];
+  // Nei due versi: un tratto in più o uno in meno contano entrambi come scarto.
+  if (a.some((p) => distToLine(p, b) > TRACE_MATCH_M) || b.some((p) => distToLine(p, a) > TRACE_MATCH_M)) return undefined;
+  return [...new Set(ids)];
+}
+
 /** Classifica i tratti di un percorso. Restituisce null se la verifica non è disponibile. */
 export async function assessRoute(coords: LatLngTuple[], wheelchair: boolean): Promise<RouteSafety | null> {
   try {
@@ -94,7 +113,7 @@ export async function assessRoute(coords: LatLngTuple[], wheelchair: boolean): P
         costing: 'pedestrian',
         costing_options: { pedestrian: { type: wheelchair ? 'wheelchair' : 'foot' } },
         filters: {
-          attributes: ['shape', 'edge.use', 'edge.road_class', 'edge.sidewalk', 'edge.length', 'edge.names', 'edge.begin_shape_index', 'edge.end_shape_index'],
+          attributes: ['shape', 'edge.use', 'edge.road_class', 'edge.sidewalk', 'edge.length', 'edge.names', 'edge.begin_shape_index', 'edge.end_shape_index', 'edge.way_id'],
           action: 'include',
         },
       }),
@@ -103,7 +122,9 @@ export async function assessRoute(coords: LatLngTuple[], wheelchair: boolean): P
     if (!res.ok) return null;
     const json = await res.json() as { edges?: Edge[]; shape?: string };
     if (!json.edges?.length || typeof json.shape !== 'string') return null;
-    return classifyEdges(json.edges, decodePolyline6(json.shape));
+    const shape = decodePolyline6(json.shape);
+    const wayIds = tracedWayIds(json.edges, shape, coords);
+    return { ...classifyEdges(json.edges, shape), ...(wayIds ? { wayIds } : {}) };
   } catch {
     return null;
   }

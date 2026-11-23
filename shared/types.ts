@@ -148,6 +148,11 @@ export interface RouteSafety {
   alternatives: number;
   /** Perché è stato scelto questo percorso tra le alternative */
   choice?: string;
+  /**
+   * Id delle way OpenStreetMap percorse, secondo la verifica dei tratti. Presente solo se la geometria riconosciuta
+   * coincide con quella del percorso: l'analisi (src/lib/analysis.ts) li usa per sapere su quali vie si passa davvero.
+   */
+  wayIds?: number[];
 }
 
 export interface ServerStatus {

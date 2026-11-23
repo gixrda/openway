@@ -71,7 +71,7 @@ npm run build
 npm start                   # http://localhost:8787
 ```
 
-Other useful commands: `npm test` (217 Vitest tests, no network: external services are simulated), `npm run typecheck`, `npm run build:pages` (static landing for GitHub Pages), `npm run osm:build` (rebuilds the data from the Geofabrik extract of Italy; needs `osmium-tool`). No linter is configured; TypeScript runs in `strict` mode.
+Other useful commands: `npm test` (232 Vitest tests, no network: external services are simulated), `npm run typecheck`, `npm run build:pages` (static landing for GitHub Pages), `npm run osm:build` (rebuilds the data from the Geofabrik extract of Italy; needs `osmium-tool`). No linter is configured; TypeScript runs in `strict` mode.
 
 ### Keys (`.env`)
 

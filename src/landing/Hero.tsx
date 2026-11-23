@@ -129,7 +129,7 @@ export function Hero({ features, reports }: { features: OsmFeature[]; reports: R
 
   const state = useRoute(HERO_ROUTE);
   const route = state.status === 'ready' ? state.route : null;
-  const alerts = useAlerts(route, features, reports);
+  const { alerts, nearby } = useAlerts(route, features, reports);
 
   // The Living Line gira da sola finché nessuno tocca la mappa; la scelta di chi usa la pagina ha sempre la precedenza.
   const reduceMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
@@ -147,7 +147,7 @@ export function Hero({ features, reports }: { features: OsmFeature[]; reports: R
     container.addEventListener('dblclick', pauseLine);
     return () => { map.off('dragstart', pauseLine); container.removeEventListener('keydown', onKey); container.removeEventListener('dblclick', pauseLine); };
   }, [map, pauseLine]);
-  const verdict = route ? verdictOf(route, alerts) : null;
+  const verdict = route ? verdictOf(route, alerts, 1, nearby) : null;
 
   // Il percorso resta nello spazio libero tra i pannelli, a qualunque larghezza.
   const fitRoute = useCallback(() => {

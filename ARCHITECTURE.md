@@ -93,7 +93,7 @@ src/
   styles.css       design system dell'app (variabili CSS, vetro, tema chiaro/scuro)
   markers.css      marker della mappa, condivisi tra app e landing
   landing/         landing page (/landing/, landing/index.html): hero con mappa, demo dei percorsi, testi in copy.it.ts e copy.en.ts
-tests/             Vitest (217 test), senza rete: i servizi esterni sono simulati
+tests/             Vitest (232 test), senza rete: i servizi esterni sono simulati
 scripts/           build-osm (dati di tutta l'Italia), download-osm (dati già pronti), build-region (confine), osm-extract (estratto Geofabrik e osmium), fetch-osm (snapshot demo), check-gemma (prova dal vivo dell'AI)
 cloud/             edizione precedente e separata (Cloudflare Workers + D1, solo Pisa): non segue più l'app principale, vedi cloud/README.md
 Dockerfile         immagine dell'app completa per la demo pubblica (dati OSM scaricati dalla release osm-data)
@@ -112,18 +112,37 @@ sequenceDiagram
   S->>V: /route pedestrian/wheelchair, alternates=2, language it-IT, exclude_polygons
   V-->>S: fino a 3 percorsi con istruzioni
   loop per ogni percorso
-    S->>V: /trace_attributes (tipo di via, marciapiede)
+    S->>V: /trace_attributes (tipo di via, marciapiede, id della way)
     V-->>S: tratti classificati
   end
   S->>S: scarta strade principali senza marciapiede e scale; preferisce meno carreggiata (max 2 m di deviazione per metro evitato)
   S->>S: verifica sulla geometria che le segnalazioni escluse siano a più di 3 m
-  S-->>B: RouteResult {coords, distanza, durata, safety, maneuvers, avoidedBlocking, avoidFailed, notice}
+  S-->>B: RouteResult {coords, distanza, durata, safety (con wayIds), maneuvers, avoidedBlocking, avoidFailed, notice}
   B->>S: GET /api/osm/14/x/y.json per le sole celle attraversate dal percorso
-  B->>B: analysis.ts confronta il percorso con i dati OSM e le segnalazioni → punti di attenzione numerati
+  B->>B: analysis.ts confronta il percorso con i dati OSM e le segnalazioni → punti di attenzione numerati + ostacoli accanto
   B->>S: POST /api/route {profile: foot} (in parallelo, solo per il confronto)
 ```
 
 Catena dei servizi: OpenRouteService (se c'è la chiave) → Valhalla → OSRM pedonale, dichiarato come *non calcolato per sedia a rotelle*. Un "nessun percorso per sedia a rotelle" è un risultato, non un guasto: non viene sostituito con un percorso a piedi.
+
+### Sul percorso o accanto
+
+`src/lib/analysis.ts` decide, per ogni elemento OSM vicino al percorso, se il percorso ci passa sopra. Il percorso è calcolato sulle vie di OpenStreetMap: la sua linea coincide con quella delle vie che usa e passa esattamente sui loro nodi.
+
+| Elemento | È sul percorso se | È "accanto" se (solo ostacoli noti) |
+|---|---|---|
+| nodo (cordolo, barriera, attraversamento) | il percorso gli passa entro `ON_M` = 1 m | è entro `POINT_M` = 5 m |
+| via (scale, fondo, larghezza…) con `safety.wayIds` | il suo id è tra le way percorse | resta entro `LINE_M` = 4 m dal percorso per almeno 15 m, o metà della sua lunghezza |
+| via senza `safety.wayIds` | coincide col percorso (entro `ON_M`) per almeno 15 m, o metà della sua lunghezza | come sopra |
+
+- `safety.wayIds` sono gli id delle way percorse secondo `/trace_attributes`. Il server li restituisce solo se la geometria riconosciuta coincide con quella del percorso (scarto ≤ 1 m, `TRACE_MATCH_M` in `server/safety.ts`): quando Valhalla non riesce a seguire il percorso tratto per tratto lo aggancia alla rete in modo approssimato e può finire sulla via parallela. Senza id (anche per il percorso a piedi di confronto, per i percorsi registrati della landing e per il ripiego OSRM) decide la geometria.
+- Gli ostacoli noti sul percorso sono i punti di attenzione numerati. Quelli accanto (`RouteAnalysis.nearby`) non sono numerati e non entrano nel conteggio, ma non spariscono: stanno in un elenco a parte, "Accanto al percorso, da controllare sul posto", restano disegnati sulla mappa e tolgono l'esito tranquillo ("Nessun ostacolo noto").
+- Nel confronto con il percorso a piedi (`src/lib/compare.ts`) un ostacolo conta come "evitato" solo se il percorso per sedia a rotelle non lo ha né sopra né accanto: i due percorsi sono analizzati con informazioni diverse (solo il primo ha gli id delle way).
+- Le altre informazioni (possibili difficoltà, scivoli, attraversamenti) vicine ma non sul percorso riguardano un'altra via e non si elencano. Anche la quota di percorso con dati sul fondo conta solo le vie percorse.
+
+Perché due classi. Fino al 21/11/2026 bastava la vicinanza (4 m per le vie, 5 m per i nodi), tarata sulla zona demo di Pisa. Misura su 11 percorsi di 1–2 km nei centri di Milano, Roma, Torino, Napoli, Bologna e Firenze, confrontando ogni ostacolo noto con le way davvero percorse: 47 segnalati, 13 sul percorso, 34 accanto (26 erano scale a 1–4 m dal tracciato, come gli ingressi della metropolitana: una via corta bastava sfiorarla). Con la regola attuale, sugli stessi percorsi: 14 sul percorso (13 giusti, più un cordolo a 1 m su un attraversamento non percorso) e 33 accanto; nessun ostacolo davvero sul percorso è finito tra quelli accanto. Sui cinque tragitti demo di Pisa: da 10 a 8 sul percorso (7 giusti) e 2 accanto.
+
+Limiti noti: i dati di Valhalla e le nostre celle OSM hanno date diverse, quindi una way divisa o ridisegnata nel frattempo può non risultare tra quelle percorse (un ostacolo noto finirebbe tra quelli accanto, non sparirebbe); senza id, una scala disegnata esattamente sulla linea del percorso (ingresso della metropolitana sotto una piazza) conta come sul percorso.
 
 ## Flusso 2 — Segnalazione e ricalcolo
 
@@ -226,6 +245,6 @@ L'accessibilità dei luoghi (`wheelchair=*` su negozi ed edifici) è un livello 
 
 ## Test e verifica
 
-- `npm test`: 217 test Vitest senza rete (servizi esterni simulati). Coprono classificazione OSM, griglia e sentieri, confine regionale, analisi del percorso, routing sicuro e i 7 scenari di ricalcolo, regole, AI e fallback, voce, API.
+- `npm test`: 232 test Vitest senza rete (servizi esterni simulati). Coprono classificazione OSM, griglia e sentieri, confine regionale, analisi del percorso, routing sicuro e i 7 scenari di ricalcolo, regole, AI e fallback, voce, API.
 - Prove dal vivo (non automatizzate nel repository): `npm run check:ai` per Gemma; script Playwright con microfono simulato per dettatura e guida vocale; i cinque percorsi demo del README.
 - Edizione `cloud/`: test propri (`cd cloud && npm test`), vedi `cloud/README.md`.

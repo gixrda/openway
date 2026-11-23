@@ -199,7 +199,7 @@ Demo in 3 minuti: link 5 (spiega la scelta) → link 3 (limite dichiarato) → l
 | `npm run dev` | Vite + API nello stesso processo (`-- --host` per la rete locale) |
 | `npm run build` | type-check (`tsc -b`) e build del frontend in `dist/` |
 | `npm start` | server Node di produzione: API + `dist/` |
-| `npm test` | 217 test Vitest (dati OSM e griglia, confine regionale, analisi e confronto percorsi, routing sicuro, ricalcolo, AI e fallback, voce, API, lingue) |
+| `npm test` | 232 test Vitest (dati OSM e griglia, confine regionale, analisi e confronto percorsi, routing sicuro, ricalcolo, AI e fallback, voce, API, lingue) |
 | `npm run typecheck` | solo type-check |
 | `npm run check:ai` | prova dal vivo di Gemma su segnalazioni di esempio (richiede la chiave) |
 | `npm run osm:download` | scarica i dati OpenStreetMap di tutta l'Italia già pronti (release `osm-data`, ~125 MB compressi, ~0,8 GB su disco) in `server/data/osm-tiles/` |

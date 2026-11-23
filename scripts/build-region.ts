@@ -42,7 +42,7 @@ function simplify(points: Ring, tolKm: number): Ring {
   return points.filter((_, i) => keep[i]);
 }
 
-const pbf = await ensureExtract();
+const { pbf } = await ensureExtract();
 osmium('tags-filter', '-O', '-o', cached('boundary.osm.pbf'), pbf, 'r/admin_level=4');
 osmium('export', '-O', '-o', cached('boundary.geojson'), '--geometry-types=polygon', cached('boundary.osm.pbf'));
 const { features } = JSON.parse(await readFile(cached('boundary.geojson'), 'utf8')) as {

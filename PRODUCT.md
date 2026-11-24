@@ -40,7 +40,7 @@ OpenWay never declares a route "accessible" or "safe". It shows what the data ca
 
 ## Brand Commitments
 
-- Name OpenWay, payoff "Freedom to move." Formerly AccessGo (old repo and `cloud/` edition keep the old name).
+- Name OpenWay, payoff "Freedom to move." Formerly AccessGo (the old repo keeps the old name).
 - Logo: `public/logo.png`.
 - Wording rules: never "accessibile" or "sicuro"; use "nei dati disponibili", "da controllare", "non verificabile".
 - Landing visual specification: `design_system.md` (OpenWay Design System v1.0).

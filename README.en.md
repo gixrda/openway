@@ -12,7 +12,7 @@ OpenWay helps people who move in a wheelchair find their way in Italy (it starte
 - **Landing page** (static, on GitHub Pages): <https://gixrda.github.io/openway/?lang=en>
 - **Architecture:** [ARCHITECTURE.md](ARCHITECTURE.md) (in Italian, with diagrams).
 
-A prototype born at the GDG Pisa Hacktoberfest (October 2026), runner-up for best open-source project. The project used to be called *AccessGo*. The [`cloud/`](cloud/README.md) folder holds an earlier, separate edition limited to Pisa: it no longer follows the main app. This file is a shorter version of the Italian [README.md](README.md), which is the reference: deployment steps, usage walkthrough and the full command list are there.
+A prototype born at the GDG Pisa Hacktoberfest (October 2026), runner-up for best open-source project. The project used to be called *AccessGo*. An earlier, separate edition limited to Pisa used to live in the `cloud/` folder: it was removed from the repository because it no longer followed the main app and its dependencies were not being updated; it remains in the git history. This file is a shorter version of the Italian [README.md](README.md), which is the reference: deployment steps, usage walkthrough and the full command list are there.
 
 ![A calculated route in Pisa: the panel lists three raised kerbs without a ramp, numbered in the order they are met, and the same numbers are on the map](docs/screenshots/route.png)
 

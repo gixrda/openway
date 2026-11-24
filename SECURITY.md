@@ -7,7 +7,7 @@ Non aprire una issue pubblica. Usa la segnalazione privata di GitHub: scheda **S
 ## Cosa è nel perimetro
 
 - App e API in questa cartella (`src/`, `server/`, `shared/`) e la landing statica pubblicata su GitHub Pages.
-- L'edizione `cloud/` è un'app separata con un proprio deploy.
+- L'edizione precedente `cloud/` non fa più parte del repository: non riceve correzioni.
 
 OpenWay è un prototipo nato per un hackathon: non usarlo per dati personali sensibili.
 

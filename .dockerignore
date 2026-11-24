@@ -9,7 +9,6 @@ dist-pages
 .env.*
 !.env.example
 *.tsbuildinfo
-cloud
 img
 .impeccable
 server/data/osm-tiles

@@ -40,7 +40,6 @@ Stato al 24/10/2026. Per riprendere: `npm install && npm run dev`, poi `npm test
 - [ ] Integrare Wheelmap per l'accessibilità delle destinazioni; valutare dati PEBA
 - [ ] Comandi vocali completi ("ricalcola", "ripeti", "interrompi") e pianificazione dell'itinerario a voce: oggi la voce detta i campi e legge la guida
 - [ ] ESLint (non configurato)
-- [ ] Allineare l'edizione `cloud/` al codice principale (oggi è una copia precedente: senza routing sicuro né ostacoli bloccanti, modello `gemma-3-27b-it`)
 
 ## Decisioni tecniche
 
